@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/login.html
+  MỤC ĐÍCH: Trang đăng nhập dành riêng cho admin (chỉ 1 tài khoản
+  admin duy nhất theo thiết kế đã thống nhất). Sau khi đăng nhập
+  thành công, tự động chuyển sang trang admin/dashboard.html.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Giúp trang hiển thị đúng tỉ lệ trên điện thoại, không bị thu nhỏ/phóng to sai -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng nhập quản trị - Không gian văn hóa Hồ Chí Minh</title>
+
+  <!-- Nhúng file CSS dùng riêng cho khu vực admin.
+       Đường dẫn "../assets/..." vì file login.html nằm trong thư mục
+       con admin/, cần lùi ra 1 cấp (../) mới tới thư mục assets/ -->
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+  <!-- Khung bao ngoài, canh giữa màn hình -->
+  <div class="khung-dang-nhap">
+
+    <!-- Thẻ chứa form đăng nhập -->
+    <div class="the-dang-nhap">
+      <h1>Đăng nhập quản trị</h1>
+      <p class="mo-ta">Không gian văn hóa Hồ Chí Minh</p>
+
+      <!-- 
+        Dùng thẻ <form> với sự kiện onsubmit gọi hàm xuLyDangNhap.
+        return false ở cuối onsubmit để CHẶN hành vi mặc định của form
+        là tải lại trang (reload) khi bấm nút submit — vì ta muốn xử lý
+        đăng nhập bằng JavaScript (gọi Supabase) thay vì gửi form theo
+        kiểu truyền thống.
+      -->
+      <form id="form-dang-nhap" onsubmit="xuLyDangNhap(event)">
+
+        <!-- Ô nhập email -->
+        <div class="nhom-truong">
+          <label for="input-email">Email</label>
+          <input
+            type="email"
+            id="input-email"
+            placeholder="admin@example.com"
+            required
+          />
+        </div>
+
+        <!-- Ô nhập mật khẩu -->
+        <div class="nhom-truong">
+          <label for="input-mat-khau">Mật khẩu</label>
+          <input
+            type="password"
+            id="input-mat-khau"
+            placeholder="Nhập mật khẩu"
+            required
+          />
+        </div>
+
+        <!-- Nút submit form, id dùng để JS có thể vô hiệu hoá nút này
+             trong lúc đang gửi yêu cầu đăng nhập (tránh bấm 2 lần liên tiếp) -->
+        <button type="submit" class="nut-dang-nhap" id="nut-submit">
+          Đăng nhập
+        </button>
+
+        <!-- Vùng hiển thị thông báo lỗi nếu đăng nhập thất bại.
+             Mặc định để trống và ẩn đi (style="display: none"),
+             JS sẽ điền nội dung + hiện ra khi có lỗi -->
+        <div class="thong-bao-loi" id="thong-bao-loi" style="display: none"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       NHÚNG CÁC FILE JAVASCRIPT
+       Thứ tự nhúng RẤT QUAN TRỌNG, phải đúng theo trình tự sau:
+       1. Thư viện Supabase JS (tải từ CDN) - tạo ra biến window.supabase
+       2. supabase-client.js - dùng window.supabase để tạo supabaseClient
+       3. auth.js - dùng supabaseClient để có các hàm dangNhap/dangXuat...
+       Nếu đảo thứ tự, các file sau sẽ báo lỗi "supabase is not defined"
+       hoặc "supabaseClient is not defined" vì biến chưa được tạo ra kịp.
+       ============================================================ -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+
+  <!-- Script riêng xử lý logic của TRANG NÀY (không đưa vào auth.js
+       vì auth.js chỉ chứa các hàm dùng CHUNG cho nhiều trang,
+       còn đoạn dưới đây là logic RIÊNG của form đăng nhập) -->
+  <script>
+    // ------------------------------------------------------------
+    // HÀM: xuLyDangNhap
+    // MỤC ĐÍCH: Được gọi khi người dùng bấm nút "Đăng nhập" (submit form).
+    // Lấy giá trị email/mật khẩu người dùng đã nhập, gọi hàm dangNhap()
+    // (định nghĩa trong auth.js), rồi xử lý kết quả trả về:
+    //   - Nếu thành công: chuyển sang trang dashboard.html
+    //   - Nếu thất bại: hiện thông báo lỗi ngay trên form
+    //
+    // THAM SỐ:
+    //   - event: sự kiện submit của form, dùng để chặn hành vi tải lại trang
+    // ------------------------------------------------------------
+    async function xuLyDangNhap(event) {
+      // Chặn hành vi mặc định của form (tải lại trang khi submit)
+      event.preventDefault();
+
+      // Lấy tham chiếu tới các phần tử trên giao diện cần dùng
+      const inputEmail = document.getElementById("input-email");
+      const inputMatKhau = document.getElementById("input-mat-khau");
+      const nutSubmit = document.getElementById("nut-submit");
+      const oThongBaoLoi = document.getElementById("thong-bao-loi");
+
+      // Đọc giá trị email/mật khẩu người dùng đã gõ vào 2 ô input
+      const email = inputEmail.value;
+      const matKhau = inputMatKhau.value;
+
+      // Ẩn thông báo lỗi cũ (nếu có từ lần bấm trước) trước khi thử lại
+      oThongBaoLoi.style.display = "none";
+
+      // Vô hiệu hoá nút submit + đổi chữ trên nút để người dùng biết
+      // hệ thống đang xử lý, tránh họ bấm thêm lần nữa trong lúc chờ
+      nutSubmit.disabled = true;
+      nutSubmit.textContent = "Đang đăng nhập...";
+
+      // Gọi hàm dangNhap() đã định nghĩa sẵn trong file auth.js
+      // Hàm này trả về object { thanhCong, thongBaoLoi }
+      const ketQua = await dangNhap(email, matKhau);
+
+      if (ketQua.thanhCong) {
+        // Đăng nhập thành công -> chuyển sang trang quản trị chính
+        window.location.href = "dashboard.html";
+      } else {
+        // Đăng nhập thất bại -> hiển thị thông báo lỗi lên giao diện
+        oThongBaoLoi.textContent = ketQua.thongBaoLoi;
+        oThongBaoLoi.style.display = "block";
+
+        // Khôi phục lại nút submit về trạng thái bình thường
+        // để người dùng có thể thử đăng nhập lại
+        nutSubmit.disabled = false;
+        nutSubmit.textContent = "Đăng nhập";
+      }
+    }
+  </script>
+</body>
+</html>

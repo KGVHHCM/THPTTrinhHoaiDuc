@@ -1,0 +1,3511 @@
+/* ============================================================
+   FILE: assets/css/style.css
+   MỤC ĐÍCH: CSS NỀN TẢNG dùng chung cho TẤT CẢ các trang PUBLIC
+   (kgvh.html, tin-tuc-hoat-dong.html,
+   tu-lieu-ky-uc.html, thu-vien.html, khong-gian-3d.html, bai-viet.html).
+
+   File này KHÔNG dùng cho khu vực admin/ (khu vực đó đã có
+   assets/css/admin.css riêng, giữ tách biệt để không ảnh hưởng lẫn nhau).
+
+   NỘI DUNG file này gồm:
+     1. Khai báo font chữ từ Google Fonts
+     2. Bảng "biến thiết kế" (design tokens): màu sắc, khoảng cách, bo góc...
+     3. Reset mặc định trình duyệt
+     4. Kiểu chữ cơ bản (heading, đoạn văn, liên kết...)
+     5. Bố cục khung chứa nội dung dùng chung (.khung-noi-dung)
+     6. Liên kết "Bỏ qua đến nội dung chính" (skip link)
+     7. Header + menu điều hướng (do assets/js/nav.js sinh HTML)
+     8. Footer dùng chung
+     9. Nút bấm dùng chung (.nut, .nut-chinh, .nut-phu)
+     10. Nhãn mục nhỏ đầu mỗi khu vực nội dung (.nhan-muc)
+     11. Thẻ bài viết (post card) — dùng bởi assets/js/render-card.js
+     12. Trang chủ: hero giới thiệu + lưới trụ cột nội dung
+     13. Trạng thái focus bàn phím + tôn trọng cài đặt "giảm chuyển động"
+     14. Responsive: menu chuyển sang dạng "hamburger" trên màn hình hẹp
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1. FONT CHỮ
+   - "Lora": font chữ có chân (serif), dùng cho tiêu đề (h1-h3),
+     tạo cảm giác trang trọng, gợi liên tưởng tư liệu/sách in.
+   - "Be Vietnam Pro": font chữ không chân (sans-serif) được thiết kế
+     riêng cho tiếng Việt, hỗ trợ đầy đủ dấu, dễ đọc trên điện thoại
+     -> dùng cho phần thân nội dung (đoạn văn, menu, nút bấm...).
+   Nạp qua Google Fonts CDN ngay trong CSS bằng @import, để CHỈ CẦN
+   nhúng 1 file style.css này ở mọi trang là có đủ font, không phải
+   thêm thẻ <link> font riêng ở từng file HTML.
+   ------------------------------------------------------------ */
+@import url("https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap");
+
+/* ------------------------------------------------------------
+   2. BẢNG BIẾN THIẾT KẾ (CSS custom properties)
+   Khai báo trên :root để dùng được ở MỌI nơi trong file này
+   (và cả admin.css nếu sau này muốn đồng bộ thêm).
+   Gom hết màu sắc/khoảng cách vào đây giúp 1 người maintain dễ
+   đổi "tông màu" toàn site chỉ bằng cách sửa ở 1 chỗ duy nhất.
+   ------------------------------------------------------------ */
+:root {
+  /* --- Màu sắc chính --- */
+  --mau-nen: #fbf8f1;            /* nền giấy ngà ấm, dùng cho toàn bộ trang */
+  --mau-nen-toi: #23291f;        /* xanh rêu-đồng tối, dùng cho footer & khối tương phản */
+  --mau-nen-phu: #f3ede0;        /* nền phụ (thẻ, khối nổi bật) - đậm hơn nền chính 1 chút */
+  --mau-chu: #2a241c;            /* nâu đen ấm, màu chữ chính (dịu hơn màu đen thuần #000) */
+  --mau-chu-nhat: #6b6153;       /* nâu xám nhạt, dùng cho chữ phụ/mô tả ít quan trọng hơn */
+  --mau-chu-tren-nen-toi: #f3ede0; /* màu chữ khi đặt trên nền tối (--mau-nen-toi) */
+
+  --mau-do: #a6192e;             /* đỏ truyền thống - ĐỒNG BỘ với assets/css/admin.css */
+  --mau-do-dam: #841221;         /* đỏ đậm hơn, dùng khi hover vào nút/link màu đỏ */
+  --mau-vang-dong: #b8863b;      /* vàng đồng, màu nhấn phụ cho nhãn mục, ngày lễ, viền trang trí */
+
+  --mau-vien: #e4ddc9;           /* màu viền mảnh (hairline), như giấy cũ */
+  --mau-vien-dam: #cfc4a4;       /* viền đậm hơn 1 chút, dùng khi cần nổi rõ hơn */
+
+  /* --- Font chữ --- */
+  --font-tieu-de: "Lora", Georgia, serif;
+  --font-noi-dung: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+
+  /* --- Khoảng cách (spacing scale), đơn vị rem để co giãn theo cỡ chữ trình duyệt --- */
+  --khoang-1: 0.25rem;  /* 4px */
+  --khoang-2: 0.5rem;   /* 8px */
+  --khoang-3: 1rem;     /* 16px */
+  --khoang-4: 1.5rem;   /* 24px */
+  --khoang-5: 2.5rem;   /* 40px */
+  --khoang-6: 4rem;     /* 64px */
+
+  /* --- Bo góc: cố tình dùng RẤT ÍT bo góc, giữ cảm giác "tư liệu/văn bản"
+     nghiêm túc thay vì mềm mại kiểu ứng dụng thương mại --- */
+  --ban-kinh-nho: 4px;
+  --ban-kinh-vua: 8px;
+
+  /* --- Độ rộng tối đa của khung nội dung, để chữ không bị kéo dài
+     quá mức trên màn hình rất rộng, khó đọc --- */
+  --do-rong-khung: 1100px;
+
+  /* --- Thời gian hiệu ứng chuyển động dùng chung, đồng bộ tốc độ
+     cho mọi hiệu ứng hover/mở-đóng trên toàn site --- */
+  --toc-do-hieu-ung: 0.2s;
+}
+
+/* ------------------------------------------------------------
+   3. RESET MẶC ĐỊNH TRÌNH DUYỆT
+   Mỗi trình duyệt có margin/padding mặc định khác nhau cho các
+   thẻ (ul, h1, p...), reset về 0 để chủ động kiểm soát khoảng
+   cách bằng --khoang-* ở trên, tránh lệch layout khó lường.
+   ------------------------------------------------------------ */
+* {
+  margin: 0;
+  padding: 0;
+  /* box-sizing: border-box giúp padding/border KHÔNG cộng dồn vào
+     width đã đặt, tính toán layout dễ dự đoán hơn */
+  box-sizing: border-box;
+}
+
+/* Ảnh mặc định co giãn theo khung chứa, không tràn ra ngoài,
+   và bỏ khoảng trắng thừa phía dưới ảnh (lỗi mặc định của thẻ <img>) */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Bỏ gạch chân + màu xanh mặc định của thẻ <a>, để CHỦ ĐỘNG
+   định dạng liên kết riêng ở từng nơi cần dùng */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Input/button kế thừa font của trang thay vì dùng font mặc định
+   hệ điều hành (mỗi hệ điều hành 1 kiểu, gây thiếu đồng nhất) */
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+/* Button mặc định có nền/viền do trình duyệt tự vẽ, bỏ hết đi để
+   style hoàn toàn bằng class riêng (.nut, .nut-chinh...) */
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------
+   4. KIỂU CHỮ CƠ BẢN
+   ------------------------------------------------------------ */
+html {
+  /* Cuộn mượt khi bấm vào liên kết nội bộ dạng "#id" (VD: link
+     "Bỏ qua đến nội dung chính"), CHỈ áp dụng khi người dùng
+     KHÔNG bật chế độ giảm chuyển động (xem khối prefers-reduced-motion
+     ở cuối file, sẽ ghi đè lại thành "auto" nếu cần) */
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-noi-dung);
+  background-color: var(--mau-nen);
+  color: var(--mau-chu);
+  line-height: 1.65; /* dòng cách rộng rãi, dễ đọc đoạn văn dài (hồi ức, nghiên cứu) */
+  font-size: 16px;
+}
+
+/* Toàn bộ heading (h1-h3) dùng chung font tiêu đề + độ đậm vừa phải
+   (600 thay vì 700 mặc định) để chữ serif không bị "nặng nề" quá mức */
+h1,
+h2,
+h3 {
+  font-family: var(--font-tieu-de);
+  font-weight: 600;
+  color: var(--mau-chu);
+  line-height: 1.25;
+}
+
+/* clamp(min, giá-trị-linh-hoạt, max): cỡ chữ tự co giãn theo độ rộng
+   màn hình, KHÔNG cần viết riêng media query cho từng mốc màn hình */
+h1 {
+  font-size: clamp(1.75rem, 1.2rem + 2.2vw, 3rem);
+}
+
+h2 {
+  font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2.1rem);
+}
+
+h3 {
+  font-size: clamp(1.15rem, 1rem + 0.6vw, 1.4rem);
+}
+
+/* Đoạn văn: giới hạn độ rộng tối đa (~68 ký tự/dòng) để mắt không
+   phải "lướt" quá xa khi đọc 1 dòng dài, đúng chuẩn dễ đọc */
+p {
+  max-width: 68ch;
+}
+
+/* Đoạn văn nằm trong khối căn giữa (VD: mô tả dưới tiêu đề section)
+   thường không có khung chứa cha bị giới hạn, nên cần class riêng
+   để CHỦ ĐỘNG canh giữa khối văn bản đó */
+.doan-mo-ta {
+  max-width: 60ch;
+  color: var(--mau-chu-nhat);
+}
+
+/* ------------------------------------------------------------
+   5. KHUNG NỘI DUNG DÙNG CHUNG
+   Mọi section trên các trang public nên bọc nội dung trong
+   1 thẻ có class "khung-noi-dung" để canh giữa + giới hạn độ rộng,
+   tránh chữ/ảnh bị kéo dài hết cỡ màn hình trên desktop lớn.
+   ------------------------------------------------------------ */
+.khung-noi-dung {
+  max-width: var(--do-rong-khung);
+  margin-inline: auto; /* canh giữa theo chiều ngang */
+  padding-inline: var(--khoang-4); /* đệm 2 bên để chữ không dính sát mép màn hình nhỏ */
+}
+
+/* Khoảng đệm trên-dưới dùng chung cho mỗi "section" nội dung trên trang,
+   giúp các khu vực không bị dính sát vào nhau */
+.section {
+  padding-block: var(--khoang-6);
+}
+
+/* ------------------------------------------------------------
+   6. LIÊN KẾT "BỎ QUA ĐẾN NỘI DUNG CHÍNH" (skip link)
+   Đây là liên kết hỗ trợ TRUY CẬP (accessibility): người dùng
+   bàn phím/trình đọc màn hình có thể bấm Tab 1 lần để nhảy thẳng
+   tới nội dung chính, không phải Tab qua hết menu mỗi lần vào trang.
+   Mặc định ẩn ngoài màn hình, CHỈ hiện ra khi đang được focus bằng
+   bàn phím (:focus). assets/js/nav.js sẽ tự chèn liên kết này vào
+   đầu <body>, trỏ tới phần tử có id="noi-dung-chinh" mà mỗi trang
+   public cần khai báo cho thẻ <main> của mình.
+   ------------------------------------------------------------ */
+.bo-qua-den-noi-dung {
+  position: absolute;
+  top: -100px; /* đẩy ra khỏi màn hình khi chưa được focus */
+  left: var(--khoang-3);
+  z-index: 100;
+  background-color: var(--mau-do);
+  color: #fff;
+  padding: var(--khoang-2) var(--khoang-3);
+  border-radius: var(--ban-kinh-nho);
+  transition: top var(--toc-do-hieu-ung) ease;
+}
+
+.bo-qua-den-noi-dung:focus {
+  top: var(--khoang-3); /* kéo vào màn hình khi người dùng Tab tới */
+}
+
+/* Lớp "chỉ đọc máy" (sr-only): nội dung vẫn tồn tại cho trình đọc
+   màn hình đọc được, nhưng ẩn khỏi hiển thị trực quan. Dùng cho các
+   chữ như "Mở/đóng menu" trên nút hamburger (nút chỉ có icon, không
+   có chữ hiển thị, nhưng vẫn cần mô tả cho người dùng khiếm thị) */
+.chi-doc-may {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------
+   7. HEADER + MENU ĐIỀU HƯỚNG
+   Các class dưới đây khớp với HTML mà assets/js/nav.js sinh ra.
+   ------------------------------------------------------------ */
+.site-header {
+  position: sticky; /* dính lại trên cùng khi cuộn trang, luôn thấy được menu */
+  top: 0;
+  z-index: 50;
+  background-color: var(--mau-nen);
+  border-bottom: 3px solid var(--mau-do); /* viền đỏ dày làm điểm nhấn nhận diện thương hiệu */
+}
+
+.khung-header {
+  max-width: var(--do-rong-khung);
+  margin-inline: auto;
+  padding: var(--khoang-3) var(--khoang-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--khoang-3);
+}
+
+/* Khối logo: dấu triện + tên trang, bấm vào sẽ về trang chủ */
+.logo-trang {
+  display: flex;
+  align-items: center;
+  gap: var(--khoang-2);
+  flex-shrink: 0; /* không cho logo bị bóp nhỏ lại khi menu dài chiếm chỗ */
+}
+
+/* Dấu triện (SVG hoa sen trong vòng tròn) - dùng currentColor nên
+   đổi màu chữ cha là đổi luôn màu icon, không cần sửa trong SVG */
+.dau-triem {
+  color: var(--mau-do);
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.ten-trang {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  font-family: var(--font-tieu-de);
+}
+
+.ten-trang strong {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--mau-chu);
+}
+
+.ten-trang-phu {
+  font-size: 0.85rem;
+  color: var(--mau-do);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Danh sách menu chính: mặc định nằm ngang (dùng cho desktop) */
+.menu-chinh ul {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--khoang-4);
+  flex-wrap: wrap;
+}
+
+.menu-chinh a {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--mau-chu);
+  padding-block: var(--khoang-1);
+  border-bottom: 2px solid transparent; /* giữ chỗ sẵn, tránh chữ "nhảy" khi hover/active thêm viền */
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.menu-chinh a:hover {
+  color: var(--mau-do);
+}
+
+/* Trang đang xem: được assets/js/nav.js tự gắn class này vào
+   đúng liên kết tương ứng với file HTML hiện tại */
+.menu-chinh a.dang-active {
+  color: var(--mau-do);
+  border-bottom-color: var(--mau-do);
+}
+
+/* Nút hamburger mở menu di động: mặc định ẨN trên desktop,
+   chỉ hiện ra trong khối @media ở cuối file (màn hình hẹp) */
+.nut-menu-di-dong {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Icon hamburger vẽ bằng 3 gạch ngang tạo từ border-top/box-shadow
+   của chính phần tử span, không cần ảnh/SVG riêng cho icon này */
+.bieu-tuong-menu {
+  position: relative;
+  width: 22px;
+  height: 2px;
+  background-color: var(--mau-chu);
+  transition: background-color var(--toc-do-hieu-ung) ease;
+}
+
+.bieu-tuong-menu::before,
+.bieu-tuong-menu::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 2px;
+  background-color: var(--mau-chu);
+  transition: transform var(--toc-do-hieu-ung) ease;
+}
+
+.bieu-tuong-menu::before {
+  top: -7px;
+}
+
+.bieu-tuong-menu::after {
+  top: 7px;
+}
+
+/* Khi menu di động đang MỞ (nut-menu-di-dong có aria-expanded="true",
+   assets/js/nav.js gắn thêm class "dang-mo" lên nút), biến icon
+   hamburger thành icon "x" bằng cách xoay 2 gạch trên/dưới lại thành chéo */
+.nut-menu-di-dong.dang-mo .bieu-tuong-menu {
+  background-color: transparent; /* ẩn gạch giữa đi */
+}
+
+.nut-menu-di-dong.dang-mo .bieu-tuong-menu::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.nut-menu-di-dong.dang-mo .bieu-tuong-menu::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+/* ------------------------------------------------------------
+   8. FOOTER DÙNG CHUNG
+   ------------------------------------------------------------ */
+.site-footer {
+  background-color: var(--mau-nen-toi);
+  color: var(--mau-chu-tren-nen-toi);
+  margin-top: var(--khoang-6);
+}
+
+.khung-footer {
+  max-width: var(--do-rong-khung);
+  margin-inline: auto;
+  padding: var(--khoang-5) var(--khoang-4);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--khoang-2);
+}
+
+.dau-triem-footer {
+  color: var(--mau-vang-dong); /* đổi sang vàng đồng khi đặt trên nền tối, dễ nhìn hơn màu đỏ */
+  width: 28px;
+  height: 28px;
+}
+
+.ten-footer {
+  font-family: var(--font-tieu-de);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.dong-ban-quyen {
+  font-size: 0.85rem;
+  color: #c9c2af; /* nhạt hơn 1 chút so với --mau-chu-tren-nen-toi, giảm độ nổi bật vì là chữ phụ */
+  max-width: 50ch;
+}
+
+/* ------------------------------------------------------------
+   9. NÚT BẤM DÙNG CHUNG
+   ------------------------------------------------------------ */
+.nut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--khoang-2) var(--khoang-4);
+  border-radius: var(--ban-kinh-nho);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: background-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease,
+    border-color var(--toc-do-hieu-ung) ease;
+}
+
+/* Nút chính: nền đỏ đặc, dùng cho hành động quan trọng nhất trên trang
+   (VD: "Xem không gian 3D", "Đọc tiếp") */
+.nut-chinh {
+  background-color: var(--mau-do);
+  color: #fff;
+}
+
+.nut-chinh:hover {
+  background-color: var(--mau-do-dam);
+}
+
+/* Nút phụ: chỉ có viền, dùng cho hành động thứ yếu, tránh 2 nút
+   cùng nổi bật như nhau gây rối mắt cho người xem */
+.nut-phu {
+  background-color: transparent;
+  border: 1.5px solid var(--mau-vien-dam);
+  color: var(--mau-chu);
+}
+
+.nut-phu:hover {
+  border-color: var(--mau-do);
+  color: var(--mau-do);
+}
+
+/* ------------------------------------------------------------
+   10. NHÃN MỤC (EYEBROW)
+   Chữ nhỏ, viết hoa, màu vàng đồng, đặt phía trên tiêu đề mỗi
+   section để gọi tên khu vực nội dung đó (VD: "TIN TỨC & HOẠT ĐỘNG").
+   Đây là nhãn TÊN THẬT của mục, không phải số thứ tự trang trí.
+   ------------------------------------------------------------ */
+.nhan-muc {
+  display: inline-block;
+  font-family: var(--font-noi-dung);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mau-vang-dong);
+  margin-bottom: var(--khoang-2);
+}
+
+/* Đường kẻ mảnh đi kèm nhãn mục, dùng làm dấu phân cách nhẹ nhàng
+   giữa các section thay vì đường viền đậm gây nặng mắt */
+.duong-ke-muc {
+  border: none;
+  border-top: 1px solid var(--mau-vien);
+  margin-block: var(--khoang-6);
+}
+
+/* ------------------------------------------------------------
+   11. THẺ BÀI VIẾT (post card)
+   Các class dưới đây khớp với HTML mà assets/js/render-card.js sinh
+   ra. Dùng chung ở trang chủ, tin-tuc-hoat-dong.html, tu-lieu-ky-uc.html
+   (mọi nơi cần hiển thị danh sách bài viết dạng lưới thẻ).
+   ------------------------------------------------------------ */
+
+/* Khung lưới chứa nhiều thẻ, tự động chia cột theo độ rộng màn hình:
+   mỗi thẻ tối thiểu 260px, tự xuống dòng khi không đủ chỗ, không cần
+   viết riêng media query cho từng mốc màn hình */
+.luoi-the-bai-viet {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--khoang-4);
+}
+
+.the-bai-viet {
+  background-color: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden; /* để ảnh bên trong bị cắt theo đúng bo góc của thẻ */
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    box-shadow var(--toc-do-hieu-ung) ease;
+}
+
+.the-bai-viet:hover {
+  border-color: var(--mau-do);
+  box-shadow: 0 6px 18px rgba(42, 36, 28, 0.08);
+}
+
+/* Toàn bộ thẻ có thể bấm được (link bao ngoài), nhưng vẫn cần bỏ
+   gạch chân/màu link mặc định vì thẻ hiển thị như 1 khối độc lập,
+   không giống đường link văn bản thông thường */
+.the-bai-viet-lienket {
+  display: block;
+  color: inherit;
+}
+
+.the-bai-viet-anh,
+.the-bai-viet-anh-rong {
+  position: relative;
+  aspect-ratio: 16 / 10; /* giữ tỉ lệ khung ảnh đồng đều giữa các thẻ, dù ảnh gốc tỉ lệ khác nhau */
+  background-color: var(--mau-nen-phu);
+}
+
+.the-bai-viet-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* ảnh lấp đầy khung, không méo tỉ lệ, phần thừa bị cắt bớt */
+}
+
+/* Khung thay thế khi bài viết CHƯA có ảnh đại diện: hiện dấu triện
+   mờ ở giữa thay vì để trống trơn hoặc vỡ layout vì thiếu ảnh */
+.the-bai-viet-anh-rong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mau-vien-dam);
+}
+
+.the-bai-viet-anh-rong svg {
+  width: 40px;
+  height: 40px;
+}
+
+/* Nhãn loại bài viết, đặt đè lên góc trên-trái của ảnh */
+.nhan-loai-the {
+  position: absolute;
+  top: var(--khoang-2);
+  left: var(--khoang-2);
+  background-color: var(--mau-nen);
+  color: var(--mau-do);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: var(--khoang-1) var(--khoang-2);
+  border-radius: var(--ban-kinh-nho);
+}
+
+.the-bai-viet-noidung {
+  padding: var(--khoang-3) var(--khoang-3) var(--khoang-4);
+}
+
+.the-bai-viet-noidung h3 {
+  font-size: 1.1rem;
+  margin-bottom: var(--khoang-2);
+  /* Giới hạn tiêu đề tối đa 2 dòng, thừa thì hiện "...", tránh thẻ
+     bị lệch cao thấp khác nhau khi tiêu đề dài ngắn khác nhau */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.the-bai-viet-mota {
+  font-size: 0.9rem;
+  color: var(--mau-chu-nhat);
+  max-width: none; /* bỏ giới hạn 68ch mặc định của thẻ <p>, vì đã bị giới hạn bởi khung thẻ rồi */
+  margin-bottom: var(--khoang-3);
+  /* Giới hạn mô tả tối đa 3 dòng, giữ chiều cao thẻ đồng đều */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.the-bai-viet-ngay {
+  font-size: 0.8rem;
+  color: var(--mau-chu-nhat);
+  font-weight: 600;
+}
+
+/* Dòng thông báo khi danh sách bài viết rỗng (chưa có bài nào thuộc
+   mục đang lọc) — canh giữa, có khoảng đệm rộng để không bị trống trải */
+.thong-bao-rong-cong-khai {
+  text-align: center;
+  padding: var(--khoang-6) var(--khoang-3);
+  color: var(--mau-chu-nhat);
+}
+
+/* ------------------------------------------------------------
+   12. TRANG CHỦ — HERO GIỚI THIỆU + LƯỚI TRỤ CỘT NỘI DUNG
+   Dùng riêng cho kgvh.html (trang chủ). Đặt chung
+   trong style.css thay vì tạo thêm 1 file CSS riêng vì đây vẫn là
+   trang public, giữ đúng quy ước "1 file CSS cho khu vực public".
+   ------------------------------------------------------------ */
+
+/* Khối hero: nền tối tương phản với phần còn lại của trang, tạo
+   điểm nhấn ngay từ đầu trang thay vì mở đầu bằng nền trắng thông thường */
+.hero-trang-chu {
+    background-color: var(--mau-nen-toi);
+
+    background-image: url("../images/KGVHHCM-banner.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    color: var(--mau-chu-tren-nen-toi);
+
+    position: relative;
+    overflow: hidden;
+}
+/* Hoạ tiết dấu triện phóng to, đặt mờ ở góc phải hero làm nền trang
+   trí — KHÔNG mang thông tin, chỉ tạo không khí thị giác, nên đánh
+   dấu aria-hidden trong HTML và không cho bắt sự kiện chuột (pointer-events) */
+.hero-hoa-tiet {
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 360px;
+  height: 360px;
+  color: var(--mau-vang-dong);
+  opacity: 0.14;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Khối chữ trong hero cần nằm TRÊN hoạ tiết trang trí (z-index cao hơn),
+   và giới hạn độ rộng hẹp hơn khung thường để dòng chữ không bị kéo dài
+   quá mức trên nền tối, giữ cảm giác tập trung vào thông điệp chính */
+.hero-noi-dung {
+  position: relative;
+  z-index: 2;
+  max-width: 620px;
+}
+
+/* Trên nền tối, các heading mặc định (màu --mau-chu, tối) sẽ không
+   đọc được -> đổi riêng màu chữ sáng cho phạm vi trong hero */
+.hero-trang-chu h1 {
+  color: var(--mau-chu-tren-nen-toi);
+  margin-bottom: var(--khoang-3);
+}
+
+.hero-mo-ta {
+  color: #d9d2bd; /* nhạt hơn --mau-chu-tren-nen-toi 1 chút, dùng cho đoạn văn phụ trên nền tối */
+  max-width: 56ch;
+}
+
+.hero-nhom-nut {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--khoang-3);
+  margin-top: var(--khoang-4);
+}
+
+/* Nút phụ (.nut-phu) mặc định thiết kế cho nền sáng (viền/màu chữ tối),
+   trên nền tối của hero cần ghi đè lại để vẫn đủ độ tương phản đọc được */
+.hero-trang-chu .nut-phu {
+  border-color: rgba(243, 237, 224, 0.35);
+  color: var(--mau-chu-tren-nen-toi);
+}
+
+.hero-trang-chu .nut-phu:hover {
+  border-color: var(--mau-vang-dong);
+  color: var(--mau-vang-dong);
+}
+
+/* Lưới 4 trụ cột nội dung, hiển thị bên dưới hero trên nền sáng bình thường */
+.luoi-tru-cot {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--khoang-4);
+  margin-top: var(--khoang-5);
+}
+
+.tru-cot {
+  display: block;
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--ban-kinh-vua);
+  padding: var(--khoang-4);
+  background-color: var(--mau-nen);
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    box-shadow var(--toc-do-hieu-ung) ease;
+}
+
+.tru-cot:hover {
+  border-color: var(--mau-do);
+  box-shadow: 0 6px 18px rgba(42, 36, 28, 0.08);
+}
+
+.tru-cot h3 {
+  margin-bottom: var(--khoang-2);
+}
+
+.tru-cot-mota {
+  font-size: 0.92rem;
+  color: var(--mau-chu-nhat);
+  max-width: none;
+}
+
+/* Dòng "Xem thêm" ở cuối mỗi trụ cột, mũi tên dịch nhẹ sang phải khi
+   hover để gợi ý "đi tiếp" - hiệu ứng nhỏ, tự tắt khi người dùng bật
+   chế độ giảm chuyển động (đã xử lý chung ở khối prefers-reduced-motion) */
+.tru-cot-xem-them {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--khoang-1);
+  margin-top: var(--khoang-3);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--mau-do);
+}
+
+.tru-cot-xem-them span {
+  transition: transform var(--toc-do-hieu-ung) ease;
+}
+
+.tru-cot:hover .tru-cot-xem-them span {
+  transform: translateX(3px);
+}
+
+/* Trên màn hình hẹp, thu nhỏ hoạ tiết hero để không lấn vào phần chữ
+   (ở màn hình rộng hoạ tiết nằm hẳn phía góc phải, còn màn hình hẹp
+   cột chữ chiếm gần hết bề ngang nên hoạ tiết dễ bị đè lên chữ) */
+@media (max-width: 780px) {
+  .hero-hoa-tiet {
+    width: 200px;
+    height: 200px;
+    top: -30px;
+    right: -30px;
+    opacity: 0.1;
+  }
+}
+
+/* ------------------------------------------------------------
+   12.5. TRANG CHI TIẾT BÀI VIẾT (bai-viet.html)
+   Các class dưới đây dùng riêng cho trang hiển thị ĐẦY ĐỦ nội dung
+   1 bài viết (khác với thẻ rút gọn do assets/js/render-card.js sinh
+   ra ở các trang danh sách). Đặt chung trong style.css vì đây vẫn
+   là 1 trang public, giữ đúng quy ước "1 file CSS cho khu vực public".
+   ------------------------------------------------------------ */
+
+/* Khung giới hạn độ rộng bài viết HẸP HƠN khung thường
+   (--do-rong-khung dùng cho lưới thẻ/section), vì đoạn văn dài
+   (hồi ức, nghiên cứu) đọc trên cột quá rộng sẽ nhanh mỏi mắt */
+.khung-bai-viet {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+/* Liên kết "quay lại" đầu trang, dẫn về đúng trang danh sách chứa
+   loại bài viết này (tin-tuc-hoat-dong.html hoặc tu-lieu-ky-uc.html) */
+.bai-viet-quaylai {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--khoang-1);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--mau-chu-nhat);
+  margin-bottom: var(--khoang-4);
+  transition: color var(--toc-do-hieu-ung) ease;
+}
+
+.bai-viet-quaylai:hover {
+  color: var(--mau-do);
+}
+
+.bai-viet-tieude {
+  margin-bottom: var(--khoang-3);
+}
+
+/* Dòng thông tin phụ (ngày, người kể...), có đường kẻ mảnh phía dưới
+   để tách rõ với phần nội dung chính bên dưới */
+.bai-viet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--khoang-2) var(--khoang-4);
+  font-size: 0.9rem;
+  color: var(--mau-chu-nhat);
+  margin-bottom: var(--khoang-5);
+  padding-bottom: var(--khoang-4);
+  border-bottom: 1px solid var(--mau-vien);
+}
+
+.bai-viet-meta strong {
+  color: var(--mau-chu);
+  font-weight: 700;
+}
+
+/* Ảnh đại diện hiển thị lớn ở đầu bài, khác với ảnh thu nhỏ trong thẻ */
+.bai-viet-anh-daidien {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--ban-kinh-vua);
+  background-color: var(--mau-nen-phu);
+  margin-bottom: var(--khoang-5);
+}
+
+/* Nội dung chi tiết: giữ nguyên xuống dòng admin đã gõ khi nhập bài
+   (white-space: pre-line) thay vì phải tách từng đoạn bằng thẻ <p>
+   riêng biệt trong database; bỏ giới hạn 68ch mặc định của <p> vì
+   .khung-bai-viet đã tự giới hạn độ rộng đọc phù hợp rồi */
+.bai-viet-noidung {
+  white-space: pre-line;
+  max-width: none;
+  font-size: 1.02rem;
+}
+
+/* Khu vực ảnh phụ (danh_sach_anh), hiển thị dạng lưới ảnh nhỏ bên
+   dưới nội dung chính, dùng cho bài viết có nhiều ảnh minh hoạ */
+.bai-viet-thuvienphu {
+  margin-top: var(--khoang-6);
+}
+
+.luoi-anh-phu-congkhai {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--khoang-3);
+  margin-top: var(--khoang-3);
+}
+
+.luoi-anh-phu-congkhai img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--ban-kinh-vua);
+  border: 1px solid var(--mau-vien);
+}
+
+/* ------------------------------------------------------------
+   12.6. THANH TAB LỌC (tu-lieu-ky-uc.html)
+   Các class dưới đây khớp với HTML mà assets/js/section-tulieu.js
+   gắn sự kiện vào — dùng để lọc bài viết theo loại (hồi ức/nghiên
+   cứu/kỷ niệm) ngay trên 1 trang, không cần chuyển trang.
+   ------------------------------------------------------------ */
+.thanh-tab-tulieu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--khoang-2);
+  margin-bottom: var(--khoang-5);
+}
+
+.tab-tulieu {
+  padding: var(--khoang-2) var(--khoang-4);
+  border: 1.5px solid var(--mau-vien-dam);
+  border-radius: 999px; /* bo tròn hết cỡ, tạo hình viên thuốc (pill) */
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--mau-chu-nhat);
+  background-color: transparent;
+  transition: background-color var(--toc-do-hieu-ung) ease,
+    border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.tab-tulieu:hover {
+  border-color: var(--mau-do);
+  color: var(--mau-do);
+}
+
+/* Tab đang được chọn: assets/js/section-tulieu.js tự gắn class này
+   vào đúng nút tab người dùng vừa bấm */
+.tab-tulieu.dang-active {
+  background-color: var(--mau-do);
+  border-color: var(--mau-do);
+  color: #fff;
+}
+
+/* ------------------------------------------------------------
+   13. TRẠNG THÁI FOCUS BÀN PHÍM
+   Trình duyệt có sẵn viền focus mặc định nhưng thường mờ nhạt,
+   ở đây vẽ lại RÕ RÀNG bằng đỏ để người dùng bàn phím luôn biết
+   đang ở phần tử nào - bắt buộc cho khả năng truy cập tốt.
+   ------------------------------------------------------------ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2.5px solid var(--mau-do);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------
+   TÔN TRỌNG CÀI ĐẶT "GIẢM CHUYỂN ĐỘNG" CỦA NGƯỜI DÙNG
+   Một số người dùng bật chế độ này (trong hệ điều hành) vì lý do
+   sức khoẻ (dễ chóng mặt với hiệu ứng chuyển động). Khi phát hiện,
+   tắt hết animation/transition thay vì ép hiệu ứng chạy.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ------------------------------------------------------------
+   14. RESPONSIVE: MENU CHUYỂN SANG DẠNG HAMBURGER
+   Dưới mốc 780px (máy tính bảng đứng/điện thoại), ẩn menu ngang
+   mặc định, hiện nút hamburger, menu chuyển thành bảng thả xuống.
+   ------------------------------------------------------------ */
+@media (max-width: 780px) {
+  .nut-menu-di-dong {
+    display: inline-flex; /* hiện nút hamburger ra */
+  }
+
+  .menu-chinh {
+    /* Mặc định ẨN toàn bộ menu, JS sẽ thêm class "dang-mo" để hiện ra
+       khi người dùng bấm nút hamburger */
+    display: none;
+    position: absolute;
+    top: 100%; /* nằm ngay dưới thanh header */
+    left: 0;
+    right: 0;
+    background-color: var(--mau-nen);
+    border-bottom: 1px solid var(--mau-vien-dam);
+    box-shadow: 0 8px 16px rgba(42, 36, 28, 0.08); /* bóng đổ nhẹ để phân biệt với nội dung phía dưới */
+  }
+
+  /* assets/js/nav.js gắn class "dang-mo" lên chính thẻ <nav class="menu-chinh">
+     khi người dùng bấm mở menu di động */
+  .menu-chinh.dang-mo {
+    display: block;
+  }
+
+  .menu-chinh ul {
+    flex-direction: column; /* menu di động: mỗi mục 1 dòng, xếp dọc */
+    align-items: stretch;
+    gap: 0;
+    padding: var(--khoang-2) var(--khoang-4) var(--khoang-4);
+  }
+
+  .menu-chinh a {
+    display: block;
+    padding-block: var(--khoang-3); /* vùng bấm cao hơn, dễ chạm trên điện thoại */
+    border-bottom: 1px solid var(--mau-vien);
+  }
+
+  .menu-chinh li:last-child a {
+    border-bottom: none;
+  }
+
+  /* Trên di động, dùng nền thay vì gạch chân để báo hiệu trang đang xem,
+     vì gạch chân dưới 1 dòng full-width trong danh sách dọc khó nhận ra hơn */
+  .menu-chinh a.dang-active {
+    background-color: var(--mau-nen-phu);
+    border-bottom-color: transparent;
+  }
+}
+
+/* ------------------------------------------------------------
+   12.7. TRANG THƯ VIỆN ẢNH & VIDEO (thu-vien.html)
+   ------------------------------------------------------------ */
+
+/* Liên kết bọc ngoài mỗi ảnh trong lưới .luoi-anh-phu-congkhai (đã
+   định nghĩa ở mục 12.5) khi dùng ở thu-vien.html: viền + hiệu ứng
+   hover đổi màu viền khi bấm được, đồng bộ cảm giác với .the-bai-viet */
+.anh-thuvien-lienket {
+  display: block;
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  border: 1px solid var(--mau-vien);
+  transition: border-color var(--toc-do-hieu-ung) ease;
+}
+
+.anh-thuvien-lienket:hover {
+  border-color: var(--mau-do);
+}
+
+/* Lưới video: cỡ ô lớn hơn lưới ảnh vì cần đủ rộng để xem rõ nội dung */
+.luoi-video-thuvien {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--khoang-4);
+}
+
+.the-video-thuvien {
+  background-color: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+}
+
+/* iframe (nhúng YouTube) và video (file trực tiếp) dùng chung 1 kiểu
+   khung 16:9, nền đen để không bị "nhấp nháy" trắng trong lúc tải */
+.the-video-thuvien iframe,
+.the-video-thuvien video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  border: none;
+  background-color: #000;
+}
+
+.the-video-thuvien figcaption {
+  padding: var(--khoang-2) var(--khoang-3);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.the-video-thuvien figcaption a:hover {
+  color: var(--mau-do);
+}
+
+/* ------------------------------------------------------------
+   15. LỐI VÀO ẨN CHO QUẢN TRỊ VIÊN (đặt trong footer)
+   Khớp với thẻ <a class="loi-vao-admin-an"> mà assets/js/nav.js
+   sinh ra trong renderFooter(). Đây chỉ là 1 chấm tròn rất nhỏ,
+   mờ, nằm ở góc dưới-phải footer — mặc định gần như vô hình,
+   chỉ rõ hơn 1 chút khi rê chuột/focus bàn phím vào đúng vị trí đó.
+   ------------------------------------------------------------ */
+.site-footer {
+  /* footer cần position: relative để chấm tròn (position: absolute
+     bên dưới) định vị theo đúng khung footer, không bị lệch ra
+     ngoài theo toàn bộ trang */
+  position: relative;
+}
+
+.loi-vao-admin-an {
+  position: absolute;
+  right: var(--khoang-3);
+  bottom: var(--khoang-3);
+
+  /* Vùng bấm thật sự rộng hơn chấm tròn hiển thị (padding tạo thêm
+     "vùng đệm" quanh chấm), giúp admin dễ bấm trúng trên điện thoại
+     dù chấm nhìn thấy rất nhỏ */
+  padding: var(--khoang-2);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Chấm tròn hiển thị: vẽ bằng ::after thay vì ảnh/SVG riêng, vì chỉ
+   cần 1 hình tròn đơn giản không cần chi tiết gì thêm */
+.loi-vao-admin-an::after {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--mau-chu-tren-nen-toi);
+
+  /* Độ mờ rất thấp ở trạng thái bình thường — gần như chìm vào nền
+     tối của footer, mắt thường lướt qua sẽ không chú ý tới */
+  opacity: 0.18;
+
+  transition: opacity var(--toc-do-hieu-ung) ease;
+}
+
+/* Khi rê chuột hoặc focus bàn phím đúng vào vị trí này, chấm rõ hơn
+   1 chút — đủ để admin (biết trước vị trí) xác nhận đang trỏ đúng
+   chỗ, nhưng vẫn không đủ nổi bật để gây chú ý với người xem thường */
+.loi-vao-admin-an:hover::after,
+.loi-vao-admin-an:focus-visible::after {
+  opacity: 0.6;
+}
+
+/* Ghi đè lại viền focus mặc định (mục 13) cho riêng link này: viền
+   đỏ dày 2.5px sẽ làm lộ vị trí quá rõ ràng, ở đây chỉ cần outline
+   mảnh, đủ để người dùng bàn phím biết đang ở đâu mà không "khoe"
+   vị trí link ra cho người xem xung quanh màn hình */
+.loi-vao-admin-an:focus-visible {
+  outline: 1px dashed var(--mau-vang-dong);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------
+   16. BADGE "+N ẢNH" TRÊN THẺ BÀI VIẾT
+   Đặt ở góc trên-phải ảnh thẻ, đối xứng với nhãn loại (góc trên-trái)
+   ------------------------------------------------------------ */
+.badge-nhieu-anh {
+  position: absolute;
+  top: var(--khoang-2);
+  right: var(--khoang-2);
+  background-color: rgba(35, 41, 31, 0.75);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: var(--khoang-1) var(--khoang-2);
+  border-radius: var(--ban-kinh-nho);
+}
+
+/* ------------------------------------------------------------
+   17. LIGHTBOX XEM ẢNH PHÓNG TO (trang bai-viet.html)
+   ------------------------------------------------------------ */
+.anh-phu-congkhai-nut {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.lightbox-anh {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(20, 17, 12, 0.92);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: var(--khoang-4);
+}
+
+.lightbox-anh.dang-mo {
+  display: flex;
+}
+
+.lightbox-anh img {
+  max-width: 100%;
+  max-height: 85vh;
+  border-radius: var(--ban-kinh-vua);
+}
+
+.lightbox-nut-dong,
+.lightbox-nut-dieu-huong {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(243, 237, 224, 0.15);
+  color: var(--mau-chu-tren-nen-toi);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--toc-do-hieu-ung) ease;
+}
+
+.lightbox-nut-dong:hover,
+.lightbox-nut-dieu-huong:hover {
+  background-color: rgba(243, 237, 224, 0.3);
+}
+
+.lightbox-nut-dong {
+  top: var(--khoang-4);
+  right: var(--khoang-4);
+  width: 40px;
+  height: 40px;
+  font-size: 1.4rem;
+}
+
+.lightbox-nut-dieu-huong {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  font-size: 1.6rem;
+}
+
+.lightbox-nut-truoc {
+  left: var(--khoang-4);
+}
+
+.lightbox-nut-sau {
+  right: var(--khoang-4);
+}
+
+.lightbox-dem-anh {
+  position: absolute;
+  bottom: var(--khoang-4);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--mau-chu-tren-nen-toi);
+  font-size: 0.85rem;
+}
+
+/* ------------------------------------------------------------
+   18. FILE ĐÍNH KÈM (PDF) TRÊN TRANG CHI TIẾT BÀI VIẾT
+   ------------------------------------------------------------ */
+.bai-viet-file-dinh-kem {
+  margin-top: var(--khoang-6);
+}
+
+/* ------------------------------------------------------------
+   19. BỐ CỤC MAGAZINE — TRANG TƯ LIỆU & KÝ ỨC (tu-lieu-ky-uc.html)
+   Khớp với HTML do assets/js/render-tulieu.js sinh ra. Thay thế
+   .luoi-the-bai-viet CHỈ ở trang này, các trang khác (trang chủ,
+   tin-tuc-hoat-dong.html) vẫn dùng lưới thẻ cũ như bình thường,
+   KHÔNG bị ảnh hưởng bởi các class mới dưới đây.
+   ------------------------------------------------------------ */
+.tulieu-bo-cuc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--khoang-6);
+}
+
+/* --- Khối nổi bật (bài mới nhất) --- */
+.tulieu-noibat-lienket {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: var(--khoang-5);
+  align-items: center;
+}
+
+.tulieu-noibat-anh {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  background-color: var(--mau-nen-phu);
+}
+
+.tulieu-noibat-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.tulieu-noibat-lienket:hover .tulieu-noibat-anh img {
+  transform: scale(1.03);
+}
+
+.tulieu-noibat-anh-rong {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mau-vien-dam);
+}
+
+.tulieu-noibat-anh-rong svg {
+  width: 64px;
+  height: 64px;
+}
+
+.nhan-loai-tulieu {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mau-do);
+  margin-bottom: var(--khoang-2);
+}
+
+.tulieu-noibat-noidung h2 {
+  margin-bottom: var(--khoang-3);
+}
+
+.tulieu-noibat-mota {
+  color: var(--mau-chu-nhat);
+  max-width: none;
+  margin-bottom: var(--khoang-3);
+}
+
+.tulieu-meta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--mau-chu-nhat);
+}
+
+.tulieu-meta-cham {
+  color: var(--mau-vang-dong);
+  margin-inline: var(--khoang-1);
+}
+
+/* --- Danh sách hàng ngang (các bài còn lại) --- */
+.tulieu-danh-sach {
+  display: flex;
+  flex-direction: column;
+}
+
+.tulieu-dong {
+  border-top: 1px solid var(--mau-vien);
+}
+
+.tulieu-dong:last-child {
+  border-bottom: 1px solid var(--mau-vien);
+}
+
+.tulieu-dong-lienket {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: var(--khoang-4);
+  align-items: center;
+  padding-block: var(--khoang-4);
+  transition: background-color var(--toc-do-hieu-ung) ease;
+}
+
+.tulieu-dong-lienket:hover {
+  background-color: var(--mau-nen-phu);
+}
+
+/* Xen kẽ: hàng lẻ đảo ảnh sang bên phải thay vì bên trái */
+.tulieu-dong-dao-chieu .tulieu-dong-lienket {
+  grid-template-columns: 1fr 180px;
+}
+
+.tulieu-dong-dao-chieu .tulieu-dong-anh {
+  order: 2;
+}
+
+.tulieu-dong-anh {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  background-color: var(--mau-nen-phu);
+}
+
+.tulieu-dong-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tulieu-dong-anh-rong {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mau-vien-dam);
+}
+
+.tulieu-dong-anh-rong svg {
+  width: 32px;
+  height: 32px;
+}
+
+.nhan-loai-tulieu-nho {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mau-vang-dong);
+  margin-bottom: var(--khoang-1);
+}
+
+.tulieu-dong-noidung h3 {
+  margin-bottom: var(--khoang-1);
+}
+
+.tulieu-dong-mota {
+  font-size: 0.9rem;
+  color: var(--mau-chu-nhat);
+  max-width: none;
+  margin-bottom: var(--khoang-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tulieu-meta-nho {
+  font-size: 0.8rem;
+}
+
+/* --- Responsive: dưới 780px, khối nổi bật xếp chồng dọc thay vì
+   2 cột, và mỗi hàng danh sách bỏ ảnh trái/phải xen kẽ (luôn ảnh
+   trên - chữ dưới), vì không đủ chỗ ngang trên điện thoại --- */
+@media (max-width: 780px) {
+  .tulieu-noibat-lienket {
+    grid-template-columns: 1fr;
+  }
+
+  .tulieu-dong-lienket,
+  .tulieu-dong-dao-chieu .tulieu-dong-lienket {
+    grid-template-columns: 96px 1fr;
+  }
+
+  .tulieu-dong-dao-chieu .tulieu-dong-anh {
+    order: 0;
+  }
+}
+
+/* ------------------------------------------------------------
+   20. CAROUSEL "GIỚI THIỆU SÁCH" (thu-vien.html)
+   Dùng scroll-snap thuần CSS thay vì thư viện carousel ngoài,
+   giữ đúng quy ước "không phụ thuộc thư viện ngoài" của dự án.
+   Khớp với HTML trong thu-vien.html và HTML do sach.js sinh ra.
+   ------------------------------------------------------------ */
+.khu-vuc-sach-thuvien {
+  margin-bottom: var(--khoang-6);
+}
+
+/* Khung bọc ngoài carousel: cần position:relative để 2 nút mũi tên
+   (position:absolute) định vị đúng theo khung này, không lệch ra
+   ngoài theo toàn trang */
+.carousel-sach-khung {
+  position: relative;
+}
+
+/* Track cuộn ngang: scroll-snap-type "x mandatory" giúp khi người
+   dùng vuốt/cuộn dở chừng, trình duyệt tự "chốt" về đúng viền thẻ
+   gần nhất thay vì dừng lại lưng chừng giữa 2 thẻ */
+.carousel-sach-track {
+  display: flex;
+  gap: var(--khoang-4);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-block: var(--khoang-1);
+  /* Ẩn thanh cuộn ngang mặc định của trình duyệt (đã có 2 nút mũi
+     tên để điều khiển), chừa lại trải nghiệm vuốt tay trên di động */
+  scrollbar-width: none;
+}
+
+.carousel-sach-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mỗi thẻ sách: bề rộng cố định để luôn thấy được vài thẻ kế tiếp
+   nhô ra mép phải, gợi ý cho người dùng biết còn thêm nội dung để
+   cuộn tới, tương tự cảm giác carousel thương mại quen thuộc */
+.the-sach {
+  flex: 0 0 220px;
+  scroll-snap-align: start;
+  display: block;
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  background-color: var(--mau-nen);
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    box-shadow var(--toc-do-hieu-ung) ease;
+}
+
+/* Chỉ đổi hiệu ứng hover khi thẻ THỰC SỰ bấm được (có link_doc),
+   tránh gây hiểu lầm "bấm được" cho thẻ sách chưa có link đọc */
+.the-sach-lienket:hover {
+  border-color: var(--mau-do);
+  box-shadow: 0 6px 18px rgba(42, 36, 28, 0.08);
+}
+
+.the-sach-anh {
+  aspect-ratio: 3 / 4; /* tỉ lệ gần với bìa sách thật, khác tỉ lệ 16:10 của ảnh bài viết */
+  background-color: var(--mau-nen-phu);
+}
+
+.the-sach-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.the-sach-anh-rong {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mau-vien-dam);
+}
+
+.the-sach-anh-rong svg {
+  width: 40px;
+  height: 40px;
+}
+
+.the-sach-noidung {
+  padding: var(--khoang-3);
+}
+
+.the-sach-noidung h3 {
+  font-size: 1rem;
+  margin-bottom: var(--khoang-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.the-sach-tacgia {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--mau-vang-dong);
+  margin-bottom: var(--khoang-2);
+  max-width: none;
+}
+
+.the-sach-mota {
+  font-size: 0.85rem;
+  color: var(--mau-chu-nhat);
+  max-width: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Nút mũi tên trái/phải: đè lên 2 mép carousel, ẩn trên màn hình
+   hẹp (dưới 780px) vì trên di động vuốt tay bằng ngón trực tiếp
+   tiện hơn nhiều so với bấm nút nhỏ */
+.carousel-sach-nut {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--mau-nen);
+  border: 1px solid var(--mau-vien-dam);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mau-chu);
+  box-shadow: 0 4px 12px rgba(42, 36, 28, 0.1);
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.carousel-sach-nut:hover {
+  border-color: var(--mau-do);
+  color: var(--mau-do);
+}
+
+.carousel-sach-nut svg {
+  width: 20px;
+  height: 20px;
+}
+
+.carousel-sach-nut-trai {
+  left: -18px;
+}
+
+.carousel-sach-nut-phai {
+  right: -18px;
+}
+
+@media (max-width: 780px) {
+  .carousel-sach-nut {
+    display: none;
+  }
+}
+
+.dau-triem img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Chiều cao cho banner ảnh mới (kgvh.html) — không có chữ đè lên
+   nên cần quy định aspect-ratio để ảnh nền hiện ra đúng tỉ lệ */
+.banner-anh-moi {
+  aspect-ratio: 3 / 1;
+}
+
+@media (max-width: 780px) {
+  .banner-anh-moi {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+/* Banner ảnh mới (kgvh.html) — dùng <img> thật, không cắt ảnh.
+   line-height: 0 để loại bỏ khoảng trắng thừa dưới ảnh do đặc tính
+   inline mặc định của thẻ <img> */
+.banner-anh-moi {
+  line-height: 0;
+}
+
+.banner-anh-moi img {
+  width: 100%;
+  height: auto;
+}
+
+
+/* Banner ảnh mới (kgvh.html) — khung có chiều cao CỐ ĐỊNH, ảnh nằm
+   gọn đầy đủ bên trong khung (object-fit: contain), không bị cắt và
+   không bị phóng to quá khổ. Nếu ảnh không vừa khít tỉ lệ khung, sẽ
+   có khoảng nền màu tối 2 bên trên/dưới hoặc trái/phải. */
+.banner-anh-moi {
+  width: 100%;
+  height: 500px;
+  overflow: hidden;
+  background-color: var(--mau-nen-toi);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner-anh-moi img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Màn hình hẹp: giảm chiều cao khung banner cho hợp lý */
+@media (max-width: 780px) {
+  .banner-anh-moi {
+    height: 280px;
+  }
+}
+
+/* Banner ảnh mới (kgvh.html) — full chiều rộng trang, chiều cao tự
+   động theo đúng tỉ lệ gốc của ảnh. line-height: 0 để loại bỏ
+   khoảng trắng thừa dưới ảnh do đặc tính inline mặc định của <img> */
+.banner-anh-moi {
+  line-height: 0;
+}
+
+.banner-anh-moi img {
+  width: 100%;
+  height: auto;
+}
+
+/* ------------------------------------------------------------
+   21. TĂNG KÍCH THƯỚC ẢNH RIÊNG CHO LƯỚI ẢNH TRANG THƯ VIỆN
+   Chỉ áp dụng cho #luoi-anh-thuvien (thu-vien.html), KHÔNG ảnh
+   hưởng .luoi-anh-phu-congkhai dùng chung ở bai-viet.html
+   ------------------------------------------------------------ */
+#luoi-anh-thuvien {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--khoang-4);
+}
+
+/* ------------------------------------------------------------
+   22. BỐ CỤC THAY THẾ CHO TRANG TƯ LIỆU & KÝ ỨC — BENTO & MASONRY
+   Bổ sung 2 lựa chọn bố cục khác cho cùng dữ liệu bai_viet mà
+   .tulieu-bo-cuc (mục 19) đang hiển thị theo kiểu magazine. Khớp
+   với HTML do veDanhSachTuLieuBento() và veDanhSachTuLieuMasonry()
+   trong assets/js/render-tulieu.js sinh ra, và nút chuyển bố cục
+   #doi-bo-cuc-tulieu trong tu-lieu-ky-uc.html. KHÔNG sửa gì các
+   class .tulieu-bo-cuc/.tulieu-noibat-*/.tulieu-dong-* của mục 19
+   — bố cục magazine vẫn hoạt động y hệt trước khi thêm mục này.
+   ------------------------------------------------------------ */
+
+/* --- Thanh nút chuyển bố cục --- */
+.doi-bo-cuc-tulieu {
+  display: flex;
+  gap: var(--khoang-2);
+  margin-bottom: var(--khoang-4);
+}
+
+.nut-bo-cuc {
+  padding: var(--khoang-1) var(--khoang-3);
+  border: 1.5px solid var(--mau-vien-dam);
+  border-radius: var(--ban-kinh-nho);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--mau-chu-nhat);
+  background-color: transparent;
+  transition: background-color var(--toc-do-hieu-ung) ease,
+    border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.nut-bo-cuc:hover {
+  border-color: var(--mau-do);
+  color: var(--mau-do);
+}
+
+.nut-bo-cuc.dang-active {
+  background-color: var(--mau-chu);
+  border-color: var(--mau-chu);
+  color: var(--mau-nen);
+}
+
+/* --- BỐ CỤC BENTO --- */
+.tulieu-bento-luoi {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 200px;
+  gap: var(--khoang-3);
+}
+
+.tulieu-bento-o {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--ban-kinh-vua);
+  background-color: var(--mau-nen-phu);
+  grid-column: span 1;
+  grid-row: span 1;
+}
+
+/* Ô nổi bật (bài đầu mảng) chiếm 2x2 */
+.tulieu-bento-noibat {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.tulieu-bento-lienket {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tulieu-bento-anh {
+  width: 100%;
+  height: 100%;
+}
+
+.tulieu-bento-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.tulieu-bento-lienket:hover .tulieu-bento-anh img {
+  transform: scale(1.04);
+}
+
+.tulieu-bento-anh-rong {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mau-vien-dam);
+}
+
+.tulieu-bento-anh-rong svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Chữ đè lên đáy ảnh, gradient tối để chữ luôn đọc được dù ảnh sáng */
+.tulieu-bento-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: var(--khoang-3);
+  background: linear-gradient(to top, rgba(20, 17, 12, 0.82), transparent);
+}
+
+.tulieu-bento-overlay .nhan-loai-tulieu-nho {
+  color: var(--mau-vang-dong);
+}
+
+.tulieu-bento-overlay h3 {
+  color: var(--mau-chu-tren-nen-toi);
+  font-size: 1rem;
+  margin-bottom: var(--khoang-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tulieu-bento-noibat .tulieu-bento-overlay h3 {
+  font-size: 1.3rem;
+}
+
+.tulieu-bento-overlay .tulieu-meta {
+  color: #d9d2bd;
+}
+
+@media (max-width: 780px) {
+  .tulieu-bento-luoi {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 160px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tulieu-bento-luoi {
+    grid-template-columns: 1fr;
+    grid-auto-rows: 220px;
+  }
+
+  /* Trên điện thoại rất hẹp, ô nổi bật cũng về kích thước thường,
+     tránh chiếm gần hết chiều cao màn hình */
+  .tulieu-bento-noibat {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}
+
+/* --- BỐ CỤC MASONRY --- */
+.tulieu-masonry-luoi {
+  column-count: 3;
+  column-gap: var(--khoang-4);
+}
+
+.tulieu-masonry-the {
+  break-inside: avoid; /* không cho 1 thẻ bị cắt làm đôi giữa 2 cột */
+  margin-bottom: var(--khoang-4);
+  display: inline-block;
+  width: 100%;
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  background-color: var(--mau-nen);
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    box-shadow var(--toc-do-hieu-ung) ease;
+}
+
+.tulieu-masonry-the:hover {
+  border-color: var(--mau-do);
+  box-shadow: 0 6px 18px rgba(42, 36, 28, 0.08);
+}
+
+.tulieu-masonry-noibat {
+  border-color: var(--mau-do);
+}
+
+.tulieu-masonry-lienket {
+  display: block;
+  color: inherit;
+}
+
+/* height: auto — CỐ TÌNH không đặt aspect-ratio ở đây, để ảnh giữ
+   nguyên tỉ lệ khung hình gốc thay vì bị crop như .the-bai-viet-anh */
+.tulieu-masonry-anh img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.tulieu-masonry-anh-rong {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mau-vien-dam);
+  background-color: var(--mau-nen-phu);
+}
+
+.tulieu-masonry-anh-rong svg {
+  width: 32px;
+  height: 32px;
+}
+
+.tulieu-masonry-noidung {
+  padding: var(--khoang-3);
+}
+
+.tulieu-masonry-noidung h3 {
+  font-size: 1rem;
+  margin-bottom: var(--khoang-1);
+}
+
+@media (max-width: 1024px) {
+  .tulieu-masonry-luoi {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .tulieu-masonry-luoi {
+    column-count: 1;
+  }
+}
+
+/* --- GHI ĐÈ: BỐ CỤC BENTO CHUYỂN THÀNH 2 CỘT ĐỀU NHAU --- */
+.tulieu-bento-luoi {
+  grid-template-columns: repeat(2, 1fr) !important;
+  grid-auto-rows: auto;
+}
+
+.tulieu-bento-o {
+  aspect-ratio: 4 / 3;
+}
+
+/* Reset lại ô nổi bật về kích thước thường (huỷ span 2x2 cũ),
+   chỉ giữ viền đỏ nhẹ để đánh dấu bài mới nhất */
+.tulieu-bento-noibat {
+  grid-column: span 1;
+  grid-row: span 1;
+  outline: 2px solid var(--mau-do);
+  outline-offset: -2px;
+}
+
+@media (max-width: 600px) {
+  .tulieu-bento-luoi {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.the-nhan-loai-goc {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------
+   23. GHI ĐÈ: TẤT CẢ Ô BENTO ĐỀU CÓ KHUNG ĐỎ
+   (trước đó chỉ ô nổi bật .tulieu-bento-noibat có outline đỏ,
+   giờ áp dụng chung cho mọi .tulieu-bento-o)
+   ------------------------------------------------------------ */
+.tulieu-bento-o {
+  outline: 2px solid var(--mau-do);
+  outline-offset: -2px;
+}
+
+.tulieu-bento-noibat {
+  outline: 2px solid var(--mau-do);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------
+   24. VÒNG XOAY 3D "SÁCH NỔI BẬT" (thu-vien.html)
+   Chuyển thể từ hiệu ứng carousel 3D xoay vòng (transform-style:
+   preserve-3d + rotateY theo --index/--quantity), NHƯNG bỏ nền đen
+   full-viewport của bản gốc, thay bằng 1 khối vừa vặn nằm trong
+   section của trang, dùng đúng bảng màu/font đã có ở mục 2.
+   Đặt phía TRÊN carousel "Sách nên đọc" (mục 20) theo đúng yêu cầu.
+   ------------------------------------------------------------ */
+.khu-vuc-sach-noibat {
+  margin-bottom: var(--khoang-6);
+}
+
+/* Khối nền tối bao quanh vòng xoay: dùng --mau-nen-toi (cùng tông
+   với footer) thay vì đen thuần, để vẫn nằm trong bảng màu chung
+   của site nhưng đủ tối để hiệu ứng chiều sâu 3D nổi bật rõ */
+.sach-noibat-khung {
+  position: relative;
+  width: 100%;
+  height: 550px;
+  overflow: hidden;
+  border-radius: var(--ban-kinh-vua);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Vòng tròn xoay: kích thước thẻ (3:4, gần tỉ lệ bìa sách thật)
+   nhỏ hơn bản demo gốc 1 chút để vừa với chiều cao khung 380px */
+.sach-noibat-vong {
+  --w: 132px;
+  --h: 176px;
+  --translateZ: calc((var(--w) + var(--h)) + 0px);
+  --rotateX: -12deg;
+  --perspective: 1000px;
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  transform-style: preserve-3d;
+  transform: perspective(var(--perspective));
+  animation: sach-noibat-xoay 22s linear infinite;
+}
+
+@keyframes sach-noibat-xoay {
+  from {
+    transform: perspective(var(--perspective)) rotateX(var(--rotateX)) rotateY(0);
+  }
+  to {
+    transform: perspective(var(--perspective)) rotateX(var(--rotateX)) rotateY(1turn);
+  }
+}
+
+/* Dừng xoay khi rê chuột vào, để người xem đọc tên sách dễ hơn
+   (theo đúng yêu cầu) — không cần JS, chỉ CSS thuần */
+.sach-noibat-vong:hover {
+  animation-play-state: paused;
+}
+
+.sach-noibat-the {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  border: 1.5px solid rgba(184, 134, 59, 0.55); /* viền vàng đồng, đồng bộ --mau-vang-dong */
+  box-shadow: 0 0 22px -6px rgba(184, 134, 59, 0.3);
+  background-color: var(--mau-nen-toi);
+  transform: rotateY(calc((360deg / var(--quantity)) * var(--index))) translateZ(var(--translateZ));
+}
+
+.sach-noibat-lienket {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+}
+
+/* Thẻ chưa có link_doc: đổi con trỏ để không gợi ý "bấm được",
+   đồng bộ quy ước đã dùng ở .the-sach (không phải .the-sach-lienket) */
+.sach-noibat-khong-bam {
+  cursor: default;
+}
+
+.sach-noibat-anh {
+  width: 100%;
+  height: 100%;
+}
+
+.sach-noibat-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sach-noibat-anh-rong {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(243, 237, 224, 0.35);
+}
+
+.sach-noibat-anh-rong svg {
+  width: 34px;
+  height: 34px;
+}
+
+/* Tên sách đè lên đáy thẻ, nền gradient tối để luôn đọc được dù
+   ảnh bìa sáng màu — cùng kỹ thuật với .tulieu-bento-overlay (mục 22) */
+.sach-noibat-ten {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--khoang-2) var(--khoang-2) var(--khoang-3);
+  background: linear-gradient(to top, rgba(20, 17, 12, 0.9) 15%, transparent);
+  color: var(--mau-chu-tren-nen-toi);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Màn hình hẹp: giảm chiều cao khung + kích thước thẻ, vòng xoay
+   vẫn giữ nguyên hiệu ứng nhưng gọn hơn để không chiếm quá nhiều
+   chỗ trên điện thoại */
+@media (max-width: 780px) {
+  .sach-noibat-khung {
+    height: 300px;
+  }
+
+  .sach-noibat-vong {
+    --w: 104px;
+    --h: 138px;
+  }
+
+  .sach-noibat-ten {
+    font-size: 0.76rem;
+  }
+}
+
+/* ------------------------------------------------------------
+   24. VÒNG XOAY 3D "SÁCH NỔI BẬT" (thu-vien.html)
+   Chuyển thể từ hiệu ứng carousel 3D xoay vòng (transform-style:
+   preserve-3d + rotateY theo --index/--quantity), NHƯNG bỏ nền đen
+   full-viewport của bản gốc, thay bằng 1 khối vừa vặn nằm trong
+   section của trang, dùng đúng bảng màu/font đã có ở mục 2.
+   Đặt phía TRÊN carousel "Sách nên đọc" (mục 20) theo đúng yêu cầu.
+   ------------------------------------------------------------ */
+.khu-vuc-sach-noibat {
+  margin-bottom: var(--khoang-6);
+}
+
+/* Khối bao quanh vòng xoay: KHÔNG có nền riêng (trong suốt), để các
+   thẻ sách "nổi" trực tiếp trên nền chung của trang (--mau-nen, be)
+   thay vì có khung tối bao quanh. overflow: visible để thẻ đang
+   "trồi" to ra phía người xem KHÔNG bị cắt mất phần trên/dưới —
+   chừa sẵn padding-block đủ rộng để thẻ phóng to vẫn nằm gọn trong
+   khoảng trống đó, không đè lên nội dung phía trên/dưới section này */
+.sach-noibat-khung {
+  position: relative;
+  width: 100%;
+  height: 460px;
+  overflow: visible;
+  padding-block: var(--khoang-5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Vòng tròn xoay: kích thước thẻ = kích thước GỐC (152x204 desktop,
+   xem media query bên dưới cho di động) NHÂN với biến --ty-le-sach-noibat
+   — biến này do JS đặt động tuỳ theo SỐ LƯỢNG sách (xem
+   veVongXoaySachNoiBat() trong thu-vien.html): ít sách (VD 3 quyển)
+   thì thẻ tự nhỏ lại, tránh chiếm quá nhiều chỗ trên màn hình như
+   khi chỉ có vài thẻ nhưng vẫn to hết cỡ.
+   --rotateX tăng độ ngả (-22deg thay vì -10deg) để thẻ "ngã ra sau"
+   rõ hơn, đúng cảm giác thẻ đang nằm nghiêng trong không gian 3D. */
+.sach-noibat-vong {
+  --w: calc(152px * var(--ty-le-sach-noibat, 1));
+  --h: calc(204px * var(--ty-le-sach-noibat, 1));
+  --translateZ: calc((var(--w) + var(--h)) + 40px);
+  --rotateX: -22deg;
+  --perspective: 800px;
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  transform-style: preserve-3d;
+  transform: perspective(var(--perspective));
+  animation: sach-noibat-xoay 22s linear infinite;
+}
+
+@keyframes sach-noibat-xoay {
+  from {
+    transform: perspective(var(--perspective)) rotateX(var(--rotateX)) rotateY(0);
+  }
+  to {
+    transform: perspective(var(--perspective)) rotateX(var(--rotateX)) rotateY(1turn);
+  }
+}
+
+/* Dừng xoay khi rê chuột vào, để người xem đọc tên sách dễ hơn
+   (theo đúng yêu cầu) — không cần JS, chỉ CSS thuần */
+.sach-noibat-vong:hover {
+  animation-play-state: paused;
+}
+
+.sach-noibat-the {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  border: 1.5px solid rgba(184, 134, 59, 0.55); /* viền vàng đồng, đồng bộ --mau-vang-dong */
+  box-shadow: 0 0 22px -6px rgba(184, 134, 59, 0.3);
+  background-color: var(--mau-nen-toi);
+  transform: rotateY(calc((360deg / var(--quantity)) * var(--index))) translateZ(var(--translateZ));
+}
+
+.sach-noibat-lienket {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+}
+
+/* Thẻ chưa có link_doc: đổi con trỏ để không gợi ý "bấm được",
+   đồng bộ quy ước đã dùng ở .the-sach (không phải .the-sach-lienket) */
+.sach-noibat-khong-bam {
+  cursor: default;
+}
+
+.sach-noibat-anh {
+  width: 100%;
+  height: 100%;
+}
+
+.sach-noibat-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sach-noibat-anh-rong {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(243, 237, 224, 0.35);
+}
+
+.sach-noibat-anh-rong svg {
+  width: 34px;
+  height: 34px;
+}
+
+/* Tên sách đè lên đáy thẻ, nền gradient tối để luôn đọc được dù
+   ảnh bìa sáng màu — cùng kỹ thuật với .tulieu-bento-overlay (mục 22) */
+.sach-noibat-ten {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--khoang-2) var(--khoang-2) var(--khoang-3);
+  background: linear-gradient(to top, rgba(20, 17, 12, 0.9) 15%, transparent);
+  color: var(--mau-chu-tren-nen-toi);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Màn hình hẹp: giảm chiều cao khung, và giảm kích thước GỐC dùng để
+   nhân với --ty-le-sach-noibat (vẫn giữ đúng cơ chế "tự co theo số
+   lượng sách" ở màn hình nhỏ, chỉ đổi mốc gốc nhỏ hơn cho vừa mắt) */
+@media (max-width: 780px) {
+  .sach-noibat-khung {
+    height: 360px;
+    padding-block: var(--khoang-4);
+  }
+
+  .sach-noibat-vong {
+    --w: calc(116px * var(--ty-le-sach-noibat, 1));
+    --h: calc(156px * var(--ty-le-sach-noibat, 1));
+  }
+
+  .sach-noibat-ten {
+    font-size: 0.76rem;
+  }
+}
+
+/* ------------------------------------------------------------
+   25. GHI ĐÈ: SÁCH NỔI BẬT — TĂNG KÍCH THƯỚC, THU HẸP KHOẢNG
+   CÁCH GIỮA CÁC CARD, NGẢ RA SAU NHIỀU HƠN
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  --w: calc(190px * var(--ty-le-sach-noibat, 1));
+  --h: calc(255px * var(--ty-le-sach-noibat, 1));
+  --translateZ: calc((var(--w) + var(--h)) * 0.62);
+  --rotateX: -30deg;
+}
+
+@media (max-width: 780px) {
+  .sach-noibat-vong {
+    --w: calc(145px * var(--ty-le-sach-noibat, 1));
+    --h: calc(195px * var(--ty-le-sach-noibat, 1));
+  }
+}
+
+/* ------------------------------------------------------------
+   26. GHI ĐÈ: GIẢM HIỆU ỨNG PHỐI CẢNH SÂU, CARD GIỮ GẦN MÀN
+   HÌNH HƠN, ĐỠ CẢM GIÁC "XA MẮT" Ở CÁC CARD RÌA VÒNG XOAY
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  --perspective: 1600px;
+  --rotateX: -18deg;
+}
+
+/* ------------------------------------------------------------
+   27. GHI ĐÈ: CARD TO HƠN NỮA, PHẲNG HƠN NỮA (giảm độ ngả)
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  --w: calc(230px * var(--ty-le-sach-noibat, 1));
+  --h: calc(310px * var(--ty-le-sach-noibat, 1));
+  --rotateX: -8deg;
+  --perspective: 2000px;
+}
+
+@media (max-width: 780px) {
+  .sach-noibat-vong {
+    --w: calc(170px * var(--ty-le-sach-noibat, 1));
+    --h: calc(228px * var(--ty-le-sach-noibat, 1));
+  }
+}
+
+/* ------------------------------------------------------------
+   28. GHI ĐÈ: PHẲNG THÊM XÍU
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  --rotateX: -3deg;
+}
+
+/* ------------------------------------------------------------
+   29. GHI ĐÈ: CARD TO THÊM NỮA
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  --w: calc(280px * var(--ty-le-sach-noibat, 1));
+  --h: calc(376px * var(--ty-le-sach-noibat, 1));
+}
+
+.sach-noibat-khung {
+  height: 620px;
+}
+
+@media (max-width: 780px) {
+  .sach-noibat-vong {
+    --w: calc(200px * var(--ty-le-sach-noibat, 1));
+    --h: calc(268px * var(--ty-le-sach-noibat, 1));
+  }
+
+  .sach-noibat-khung {
+    height: 460px;
+  }
+}
+
+/* ------------------------------------------------------------
+   30. GHI ĐÈ: CARD TO THÊM NỮA
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  --w: calc(340px * var(--ty-le-sach-noibat, 1));
+  --h: calc(456px * var(--ty-le-sach-noibat, 1));
+}
+
+.sach-noibat-khung {
+  height: 720px;
+}
+
+@media (max-width: 780px) {
+  .sach-noibat-vong {
+    --w: calc(230px * var(--ty-le-sach-noibat, 1));
+    --h: calc(308px * var(--ty-le-sach-noibat, 1));
+  }
+
+  .sach-noibat-khung {
+    height: 500px;
+  }
+}
+
+/* ------------------------------------------------------------
+   31. GHI ĐÈ: VÒNG XOAY "SÁCH NỔI BẬT" CHUYỂN SANG ĐIỀU KHIỂN
+   BẰNG JS (assets/js/sach-noi-bat-xoay.js), ĐỂ KHI RÊ CHUỘT VÀO
+   VÒNG XOAY CHẬM DẦN RỒI MỚI DỪNG, thay vì dừng khựng ngay lập
+   tức như animation-play-state: paused trước đây. Tắt hẳn
+   @keyframes cũ, thay bằng rotateY dùng biến --goc-xoay do JS
+   cập nhật liên tục mỗi khung hình.
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  animation: none;
+  transform: perspective(var(--perspective)) rotateX(var(--rotateX))
+    rotateY(var(--goc-xoay, 0deg));
+}
+
+/* Bỏ hành vi pause cũ — việc chậm dần/dừng giờ do JS đảm nhiệm */
+.sach-noibat-vong:hover {
+  animation-play-state: running;
+}
+
+/* ------------------------------------------------------------
+   32. GHI ĐÈ: MENU CHÍNH — HIỆU ỨNG HOVER NỀN ĐỎ CHỮ VÀNG
+   ------------------------------------------------------------ */
+.menu-chinh a {
+  padding: var(--khoang-2) var(--khoang-3);
+  border-radius: var(--ban-kinh-nho);
+  border-bottom: none;
+  transition: background-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.menu-chinh a:hover {
+  background-color: var(--mau-do);
+  color: var(--mau-vang-dong);
+}
+
+.menu-chinh a.dang-active {
+  background-color: var(--mau-do);
+  color: var(--mau-vang-dong);
+  border-bottom: none;
+}
+
+/* Trên di động, giữ đồng bộ hiệu ứng nền đỏ chữ vàng khi hover/active */
+@media (max-width: 780px) {
+  .menu-chinh a {
+    border-bottom: 1px solid var(--mau-vien);
+    border-radius: 0;
+  }
+
+  .menu-chinh a:hover {
+    background-color: var(--mau-do);
+    color: var(--mau-vang-dong);
+  }
+
+  .menu-chinh a.dang-active {
+    background-color: var(--mau-do);
+    color: var(--mau-vang-dong);
+    border-bottom-color: transparent;
+  }
+}
+
+/* ------------------------------------------------------------
+   33. GHI ĐÈ: MENU CHÍNH — VÀNG SÁNG HƠN, ĐỎ ĐẬM HƠN, BO TRÒN HƠN
+   ------------------------------------------------------------ */
+.menu-chinh a {
+  border-radius: 999px;
+}
+
+.menu-chinh a:hover,
+.menu-chinh a.dang-active {
+  background-color: var(--mau-do-dam);
+  color: #ffda6a;
+}
+
+@media (max-width: 780px) {
+  .menu-chinh a {
+    border-radius: var(--ban-kinh-vua);
+  }
+} 
+
+/* ------------------------------------------------------------
+   34. SÁCH NỔI BẬT: KHỐI SÁCH 3D — GÁY TRÒN, BÌA NHÔ, RUỘT THỤT
+   ------------------------------------------------------------ */
+.sach-noibat-vong {
+  --do-day: calc(var(--w) * 0.17);          /* độ dày sách */
+  --le-bia: calc(var(--w) * 0.025);         /* bìa nhô ra ở mép phải */
+  --le-doc: calc(var(--h) * 0.014);         /* bìa nhô ra ở trên/dưới */
+  --day-giay: calc(var(--do-day) - 8px);    /* độ dày ruột sách */
+  --manh-gay: calc(var(--do-day) * 0.27);   /* bề rộng 1 mảnh gáy */
+}
+
+.sach-noibat-the {
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  transform-style: preserve-3d;
+}
+
+.sach-noibat-khoi {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.sach-noibat-mat {
+  position: absolute;
+  backface-visibility: hidden;
+}
+
+/* Bìa trước */
+.sach-noibat-mat-truoc {
+  inset: 0;
+  overflow: hidden;
+  border-radius: 2px 5px 5px 2px;
+  border: 1.5px solid rgba(184, 134, 59, 0.55);
+  background-color: var(--mau-nen-toi);
+  transform: translateZ(calc(var(--do-day) / 2));
+}
+
+/* Bìa sau */
+.sach-noibat-mat-sau {
+  inset: 0;
+  border-radius: 5px 2px 2px 5px;
+  background: var(--mau-nen-toi);
+  transform: rotateY(180deg) translateZ(calc(var(--do-day) / 2));
+}
+
+/* Gáy tròn: 6 mảnh, mỗi mảnh xoay 30 độ so với mảnh kế bên */
+.sach-noibat-gay-manh {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: var(--manh-gay);
+  left: calc(50% - var(--manh-gay) / 2);
+  overflow: hidden;
+  backface-visibility: hidden;
+  background: var(--mau-nen-toi);
+  transform: translateX(calc(var(--w) / -2))
+    rotateY(calc((var(--k) + 0.5) * -30deg))
+    translateZ(calc(var(--do-day) / 2 * 0.966));
+}
+
+/* Mỗi mảnh hiện đúng 1 lát của ảnh bìa, ghép lại thành gáy liền màu */
+.sach-noibat-gay-nen {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 600%;
+  left: calc(var(--k) * -100%);
+  background-size: 100% 100%;
+  background-position: center;
+  filter: saturate(1.1) brightness(0.85);
+}
+
+/* Tên sách trên gáy (tấm phẳng nằm ngay sát đỉnh cung gáy) */
+.sach-noibat-gay-chu {
+  top: 8%;
+  height: 84%;
+  width: calc(var(--do-day) * 0.5);
+  left: calc(50% - var(--do-day) * 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(calc(var(--w) / -2))
+    rotateY(-90deg)
+    translateZ(calc(var(--do-day) / 2 + 1px));
+}
+
+.sach-noibat-gay-chu span {
+  writing-mode: vertical-rl;
+  max-height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-tieu-de);
+  font-weight: 600;
+  font-size: calc(var(--do-day) * 0.32);
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* Ruột sách thụt vào: mép phải */
+.sach-noibat-mat-mep {
+  top: var(--le-doc);
+  height: calc(100% - 2 * var(--le-doc));
+  width: var(--day-giay);
+  left: calc(50% - var(--day-giay) / 2);
+  background: repeating-linear-gradient(90deg, #fbf8f0 0 2px, #ddd4bd 2px 3px);
+  transform: rotateY(90deg) translateZ(calc(var(--w) / 2 - var(--le-bia)));
+}
+
+/* Ruột sách thụt vào: mép trên và dưới */
+.sach-noibat-mat-tren,
+.sach-noibat-mat-duoi {
+  left: 0;
+  width: calc(100% - var(--le-bia));
+  height: var(--day-giay);
+  top: calc(50% - var(--day-giay) / 2);
+  background: repeating-linear-gradient(180deg, #fbf8f0 0 2px, #ddd4bd 2px 3px);
+}
+
+.sach-noibat-mat-tren {
+  transform: rotateX(90deg) translateZ(calc(var(--h) / 2 - var(--le-doc)));
+}
+
+.sach-noibat-mat-duoi {
+  transform: rotateX(-90deg) translateZ(calc(var(--h) / 2 - var(--le-doc)));
+}
+
+/* ===== Tiêu đề trang trọng — chỉ áp dụng cho section Chân dung lịch sử ===== */
+.section-chan-dung .nhan-muc {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 3px;
+  font-weight: 600;
+  opacity: 0;
+  animation: hienLen 0.9s ease-out 0.1s forwards;
+}
+
+.section-chan-dung .icon-sao {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: #c9a24a;
+  filter: drop-shadow(0 0 4px rgba(201, 162, 74, 0.5));
+  animation: saoToaSang 3.5s ease-in-out infinite;
+}
+
+.section-chan-dung h2 {
+  position: relative;
+  display: block;
+  width: fit-content;
+  font-family: 'Playfair Display', 'Lora', serif;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding-bottom: 14px;
+  background: linear-gradient(100deg,
+      #3b1a14 0%, #3b1a14 40%,
+      #b8892e 50%,
+      #3b1a14 60%, #3b1a14 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+  animation:
+    hienLen 1s ease-out 0.35s forwards,
+    anhVangLuot 6s ease-in-out 1.5s infinite;
+}
+
+.section-chan-dung h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #9b1b30, #c9a24a);
+  animation: keDuong 1.2s ease-out 1.1s forwards;
+}
+
+@keyframes hienLen {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes keDuong {
+  to { width: 120px; }
+}
+
+@keyframes anhVangLuot {
+  0%, 20%   { background-position: 100% 0; }
+  60%, 100% { background-position: 0% 0; }
+}
+
+@keyframes saoToaSang {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+  50%      { transform: scale(1.18) rotate(10deg); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-chan-dung .nhan-muc,
+  .section-chan-dung h2,
+  .section-chan-dung .icon-sao {
+    animation: none;
+    opacity: 1;
+  }
+  .section-chan-dung h2::after {
+    animation: none;
+    width: 120px;
+  }
+}
+
+/* ===== Tiêu đề mục "Bốn mảng nội dung chính" (giống "Chân dung lịch sử") ===== */
+.tieu-de-muc {
+  margin-bottom: 32px;
+}
+
+.tieu-de-muc__nhan {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Inter', 'Be Vietnam Pro', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #b8893c;
+  opacity: 0;
+  animation: tieuDeLenXuong 0.7s ease forwards;
+}
+
+.tieu-de-muc__icon {
+  width: 22px;
+  height: 22px;
+  color: #d4a84b;
+  filter: drop-shadow(0 0 6px rgba(212, 168, 75, 0.55));
+  animation: saoLapLanh 2.8s ease-in-out infinite;
+}
+
+.tieu-de-muc__chinh {
+  margin: 10px 0 0;
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(30px, 4vw, 46px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #3b1a14;
+  opacity: 0;
+  animation: tieuDeLenXuong 0.8s ease 0.15s forwards;
+}
+
+.tieu-de-muc__gach {
+  display: block;
+  width: 150px;
+  height: 4px;
+  margin-top: 18px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #a81c33, #d4a84b);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: gachMoRong 0.8s ease 0.45s forwards;
+}
+
+@keyframes tieuDeLenXuong {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gachMoRong {
+  to { transform: scaleX(1); }
+}
+
+@keyframes saoLapLanh {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50%      { transform: scale(1.18) rotate(12deg); opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tieu-de-muc__nhan,
+  .tieu-de-muc__chinh,
+  .tieu-de-muc__gach,
+  .tieu-de-muc__icon { animation: none; opacity: 1; transform: none; }
+}
+
+.tieu-de-trang-giua {
+  text-align: center;
+}
+
+/* ===== Hiệu ứng tiêu đề trang Tin tức: hiện lên + ánh vàng chạy qua chữ đỏ ===== */
+.section:has(#luoi-tin-tuc) .tieu-de-trang-giua {
+  display: inline-block;
+  color: #9b1c24; /* màu dự phòng */
+  background: linear-gradient(
+    100deg,
+    #9b1c24 0%,
+    #9b1c24 38%,
+    #f6c945 50%,
+    #9b1c24 62%,
+    #9b1c24 100%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  opacity: 0;
+  animation:
+    tieuDeHienLen 1s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    tieuDeAnhVang 3.5s ease-in-out 1s infinite;
+}
+
+@keyframes tieuDeHienLen {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+    letter-spacing: 0.08em;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    letter-spacing: normal;
+    filter: blur(0);
+  }
+}
+
+@keyframes tieuDeAnhVang {
+  0%   { background-position: 100% 0; }
+  60%  { background-position: 0% 0; }
+  100% { background-position: 0% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section:has(#luoi-tin-tuc) .tieu-de-trang-giua {
+    animation: none;
+    opacity: 1;
+    background: none;
+    -webkit-text-fill-color: #9b1c24;
+  }
+} 
+
+/* Căn tiêu đề trang Tin tức ra giữa */
+.section:has(#luoi-tin-tuc) .tieu-de-trang-giua {
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ===== Tiêu đề trang Tư liệu & Ký ức: giống trang Tin tức + căn giữa ===== */
+.khung-noi-dung:has(#thanh-tab-tulieu) > h1 {
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+
+  color: #9b1c24; /* màu dự phòng */
+  background: linear-gradient(
+    100deg,
+    #9b1c24 0%,
+    #9b1c24 38%,
+    #f6c945 50%,
+    #9b1c24 62%,
+    #9b1c24 100%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  opacity: 0;
+  animation:
+    tieuDeHienLen 1s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    tieuDeAnhVang 3.5s ease-in-out 1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .khung-noi-dung:has(#thanh-tab-tulieu) > h1 {
+    animation: none;
+    opacity: 1;
+    background: none;
+    -webkit-text-fill-color: #9b1c24;
+  }
+}
+
+/* ===== Tiêu đề trang Thư viện: giống trang Tin tức + căn giữa ===== */
+.khung-noi-dung:has(#thanh-tab-thuvien) > h1 {
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+
+  color: #9b1c24; /* màu dự phòng */
+  background: linear-gradient(
+    100deg,
+    #9b1c24 0%,
+    #9b1c24 38%,
+    #f6c945 50%,
+    #9b1c24 62%,
+    #9b1c24 100%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  opacity: 0;
+  animation:
+    tieuDeHienLen 1s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    tieuDeAnhVang 3.5s ease-in-out 1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .khung-noi-dung:has(#thanh-tab-thuvien) > h1 {
+    animation: none;
+    opacity: 1;
+    background: none;
+    -webkit-text-fill-color: #9b1c24;
+  }
+}
+
+/* ===== Tiêu đề "Sách nổi bật": giống section Chân dung lịch sử ===== */
+.khu-vuc-sach-noibat .nhan-muc {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 3px;
+  font-weight: 600;
+  opacity: 0;
+  animation: hienLen 0.9s ease-out 0.1s forwards;
+}
+
+.khu-vuc-sach-noibat .icon-sao {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: #c9a24a;
+  filter: drop-shadow(0 0 4px rgba(201, 162, 74, 0.5));
+  animation: saoToaSang 3.5s ease-in-out infinite;
+}
+
+.khu-vuc-sach-noibat > h2 {
+  position: relative;
+  display: block;
+  width: fit-content;
+  font-family: 'Playfair Display', 'Lora', serif;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding-bottom: 14px;
+  background: linear-gradient(100deg,
+      #3b1a14 0%, #3b1a14 40%,
+      #b8892e 50%,
+      #3b1a14 60%, #3b1a14 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+  animation:
+    hienLen 1s ease-out 0.35s forwards,
+    anhVangLuot 6s ease-in-out 1.5s infinite;
+}
+
+.khu-vuc-sach-noibat > h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #9b1b30, #c9a24a);
+  animation: keDuong 1.2s ease-out 1.1s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .khu-vuc-sach-noibat .nhan-muc,
+  .khu-vuc-sach-noibat > h2,
+  .khu-vuc-sach-noibat .icon-sao {
+    animation: none;
+    opacity: 1;
+  }
+  .khu-vuc-sach-noibat > h2::after {
+    animation: none;
+    width: 120px;
+  }
+}
+
+/* ===== Tiêu đề "Sách nên đọc": giống "Sách nổi bật", dùng icon cuốn sách ===== */
+.khu-vuc-sach-thuvien .nhan-muc {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 3px;
+  font-weight: 600;
+  opacity: 0;
+  animation: hienLen 0.9s ease-out 0.1s forwards;
+}
+
+.khu-vuc-sach-thuvien .icon-sach {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: #c9a24a;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px rgba(201, 162, 74, 0.5));
+  animation: saoToaSang 3.5s ease-in-out infinite;
+}
+
+.khu-vuc-sach-thuvien > h2 {
+  position: relative;
+  display: block;
+  width: fit-content;
+  font-family: 'Playfair Display', 'Lora', serif;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding-bottom: 14px;
+  background: linear-gradient(100deg,
+      #3b1a14 0%, #3b1a14 40%,
+      #b8892e 50%,
+      #3b1a14 60%, #3b1a14 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+  animation:
+    hienLen 1s ease-out 0.35s forwards,
+    anhVangLuot 6s ease-in-out 1.5s infinite;
+}
+
+.khu-vuc-sach-thuvien > h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #9b1b30, #c9a24a);
+  animation: keDuong 1.2s ease-out 1.1s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .khu-vuc-sach-thuvien .nhan-muc,
+  .khu-vuc-sach-thuvien > h2,
+  .khu-vuc-sach-thuvien .icon-sach {
+    animation: none;
+    opacity: 1;
+  }
+  .khu-vuc-sach-thuvien > h2::after {
+    animation: none;
+    width: 120px;
+  }
+} 
+
+/* ===== THƯ VIỆN: ẢNH HIỆN NGUYÊN KHUNG, BẤM ĐỂ PHÓNG TO ===== */
+#luoi-anh-thuvien {
+  display: block;
+  column-count: 3;
+  column-gap: var(--khoang-4);
+}
+
+#luoi-anh-thuvien .thong-bao-rong-cong-khai {
+  column-span: all;
+}
+
+.anh-thuvien-nut {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--khoang-4);
+  padding: 0;
+  break-inside: avoid;
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden;
+  cursor: zoom-in;
+  background: none;
+  transition: border-color var(--toc-do-hieu-ung) ease;
+}
+
+.anh-thuvien-nut:hover {
+  border-color: var(--mau-do);
+}
+
+/* Ghi đè khung 4:3 cắt ảnh của .luoi-anh-phu-congkhai img */
+#luoi-anh-thuvien img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+  object-fit: initial;
+  border: none;
+  border-radius: 0;
+}
+
+@media (max-width: 1024px) {
+  #luoi-anh-thuvien { column-count: 2; }
+}
+
+@media (max-width: 480px) {
+  #luoi-anh-thuvien { column-count: 1; }
+} 
+
+/* Tiêu đề "Không gian 2D": giống trang Thư viện (đỏ + ánh vàng chạy qua, căn giữa) */
+.kg3d-gioi-thieu h1 {
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+
+  color: #9b1c24; /* màu dự phòng */
+  background: linear-gradient(
+    100deg,
+    #9b1c24 0%,
+    #9b1c24 38%,
+    #f6c945 50%,
+    #9b1c24 62%,
+    #9b1c24 100%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  opacity: 0;
+  animation:
+    tieuDeHienLen 1s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    tieuDeAnhVang 3.5s ease-in-out 1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kg3d-gioi-thieu h1 {
+    animation: none;
+    opacity: 1;
+    background: none;
+    -webkit-text-fill-color: #9b1c24;
+  }
+} 
+
+/* Tiêu đề "Không gian 2D": căn giữa + hiệu ứng giống trang Thư viện */
+.kg3d-gioi-thieu {
+  text-align: center;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.kg3d-gioi-thieu h1 {
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+
+  color: #9b1c24; /* màu dự phòng */
+  background: linear-gradient(
+    100deg,
+    #9b1c24 0%,
+    #9b1c24 38%,
+    #f6c945 50%,
+    #9b1c24 62%,
+    #9b1c24 100%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  opacity: 0;
+  animation:
+    tieuDeHienLen 1s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    tieuDeAnhVang 3.5s ease-in-out 1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kg3d-gioi-thieu h1 {
+    animation: none;
+    opacity: 1;
+    background: none;
+    -webkit-text-fill-color: #9b1c24;
+  }
+} 
+
+.sach-noibat-mat-sau {
+  background: var(--mau-bia-sau, #7a1020); /* không lấy được màu thì dùng đỏ đô */
+  border: 2px solid #c9a24b;
+  box-shadow: inset 0 0 0 6px rgba(201, 162, 75, 0.25);
+} 
+
+/* ------------------------------------------------------------
+   35. GHI ĐÈ: "SÁCH NÊN ĐỌC" TỪ CAROUSEL NGANG -> LƯỚI + XEM THÊM
+   Số cột tự chia theo chiều rộng màn hình (auto-fill).
+   Mặc định chỉ hiện 1 hàng, JS thêm class .an-sach để ẩn các thẻ còn lại.
+   ------------------------------------------------------------ */
+.khu-vuc-sach-thuvien {
+  scroll-margin-top: 100px; /* chừa chỗ cho header dính khi cuộn về đầu mục */
+}
+
+.carousel-sach-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--khoang-4);
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.carousel-sach-track .the-sach {
+  flex: none;
+  width: auto;
+}
+
+/* Dòng thông báo "Đang tải..." chiếm trọn hàng thay vì bị kẹt trong 1 cột */
+.carousel-sach-track > .thong-bao-rong-cong-khai {
+  grid-column: 1 / -1;
+}
+
+.the-sach.an-sach {
+  display: none;
+}
+
+.the-sach.vua-hien {
+  animation: sachHienLen 0.5s ease both;
+}
+
+@keyframes sachHienLen {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Nút Xem thêm / Thu gọn */
+.sach-xem-them-khung {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--khoang-4);
+}
+
+.nut-xem-them-sach {
+  gap: var(--khoang-2);
+  padding: var(--khoang-2) var(--khoang-5);
+  border-radius: 999px;
+}
+
+.nut-xem-them-sach svg {
+  width: 18px;
+  height: 18px;
+  transition: transform var(--toc-do-hieu-ung) ease;
+}
+
+.nut-xem-them-sach.dang-thu-gon svg {
+  transform: rotate(180deg); /* mũi tên hướng lên khi ở trạng thái "Thu gọn" */
+}
+
+/* Điện thoại: thẻ nhỏ hơn để vừa 2 cột */
+@media (max-width: 780px) {
+  .carousel-sach-track {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--khoang-3);
+  }
+} 
+
+/* ------------------------------------------------------------
+   THÊM VÀO CUỐI FILE assets/css/style.css
+   (chỉ THÊM mới, không sửa/xoá bất kỳ đoạn nào đã có)
+   36. FOOTER: 2 NÚT LOGO "ĐOÀN TRƯỜNG" + "WEB TRƯỜNG"
+   Khớp với HTML do renderFooter() trong assets/js/nav.js sinh ra.
+   ------------------------------------------------------------ */
+.footer-lien-ket {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--khoang-3);
+  margin-block: var(--khoang-3);
+}
+
+.footer-nut-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--khoang-2);
+  padding: 6px var(--khoang-4) 6px 6px;
+  border: 1.5px solid rgba(243, 237, 224, 0.28);
+  border-radius: 999px;
+  color: var(--mau-chu-tren-nen-toi);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease,
+    background-color var(--toc-do-hieu-ung) ease,
+    transform var(--toc-do-hieu-ung) ease;
+}
+
+/* Logo nằm trong vòng tròn nền trắng để đọc rõ trên nền footer tối */
+.footer-nut-logo img {
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border-radius: 50%;
+  background-color: #fff;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.footer-nut-logo:hover {
+  border-color: var(--mau-vang-dong);
+  color: #ffda6a;
+  background-color: rgba(243, 237, 224, 0.06);
+  transform: translateY(-2px);
+}
+
+/* Điện thoại hẹp: 2 nút xếp dọc, cùng độ rộng cho gọn mắt */
+@media (max-width: 480px) {
+  .footer-lien-ket {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .footer-nut-logo {
+    justify-content: flex-start;
+  }
+} 
+
+/* ------------------------------------------------------------
+   DÁN PHẦN NÀY VÀO CUỐI FILE assets/css/style.css
+   (chỉ thêm mới, không sửa/xoá đoạn nào đã có)
+   37. THẺ BÀI VIẾT CÓ NÚT "XEM THÊM / THU GỌN" (tin-tuc-hoat-dong.html)
+   38. HIỂN THỊ CÁC KHỐI NỘI DUNG BÀI VIẾT (thẻ bung ra + bai-viet.html)
+   ------------------------------------------------------------ */
+
+/* ===== 37. Thẻ có Xem thêm / Thu gọn ===== */
+
+/* Thẻ bung ra cao hơn thẻ bên cạnh -> không kéo giãn các thẻ khác */
+.luoi-the-xem-them {
+  align-items: start;
+}
+
+.the-bai-viet-noidung h3 a:hover {
+  color: var(--mau-do);
+}
+
+.the-bai-viet-chan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--khoang-3);
+}
+
+.nut-xem-them-bai {
+  padding: var(--khoang-1) 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--mau-do);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--toc-do-hieu-ung) ease;
+}
+
+.nut-xem-them-bai:hover {
+  color: var(--mau-do-dam);
+  text-decoration: underline;
+}
+
+/* Nội dung đầy đủ: ẩn khi thu gọn */
+.the-bai-viet-day-du {
+  display: none;
+}
+
+/* Trạng thái đã bung */
+.the-bai-viet-xem-them {
+  scroll-margin-top: 100px; /* chừa chỗ cho header dính khi cuộn về đầu thẻ lúc Thu gọn */
+}
+
+.the-bai-viet-xem-them.dang-mo {
+  grid-column: 1 / -1; /* thẻ bung ra chiếm trọn hàng cho đủ chỗ đọc */
+}
+
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-anh,
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-anh-rong {
+  aspect-ratio: 21 / 9; /* ảnh đại diện thấp lại khi thẻ rộng ra */
+}
+
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-mota {
+  display: none; /* nội dung đầy đủ thay cho đoạn mô tả ngắn */
+}
+
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-day-du {
+  display: block;
+  max-width: 760px;
+  margin: var(--khoang-3) auto var(--khoang-4);
+  animation: baiVietBungRa 0.35s ease both;
+}
+
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-noidung h3 {
+  -webkit-line-clamp: unset; /* tiêu đề hiện đủ, không cắt 2 dòng */
+}
+
+@keyframes baiVietBungRa {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 38. Hiển thị các khối nội dung ===== */
+.bv-khoi {
+  margin: 0 0 var(--khoang-4);
+  line-height: 1.75;
+  font-size: 1.02rem;
+}
+
+.bv-khoi:last-child {
+  margin-bottom: 0;
+}
+
+.bv-khoi-tieu-de {
+  margin: var(--khoang-5) 0 var(--khoang-2);
+}
+
+.bv-khoi-trich-dan {
+  padding: var(--khoang-2) var(--khoang-4);
+  border-left: 4px solid var(--mau-vang-dong);
+  background-color: var(--mau-nen-phu);
+  border-radius: 0 var(--ban-kinh-vua) var(--ban-kinh-vua) 0;
+  font-style: italic;
+}
+
+.bv-khoi-trich-dan p {
+  max-width: none;
+}
+
+.bv-khoi-trich-dan footer {
+  margin-top: var(--khoang-2);
+  font-size: 0.88rem;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--mau-chu-nhat);
+}
+
+/* Ảnh: 1 ảnh lớn / nhiều ảnh xếp lưới / nhiều ảnh xếp dọc */
+.bv-anh {
+  margin: 0;
+}
+
+.bv-anh img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--ban-kinh-vua);
+  border: 1px solid var(--mau-vien);
+  cursor: zoom-in;
+}
+
+.bv-anh figcaption {
+  margin-top: var(--khoang-1);
+  font-size: 0.85rem;
+  color: var(--mau-chu-nhat);
+}
+
+.bv-khoi-anh-luoi {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--khoang-3);
+}
+
+.bv-khoi-anh-luoi .bv-anh img {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.bv-khoi-anh-doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--khoang-4);
+}
+
+/* Video: khung 16:9 */
+.bv-khoi-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+}
+
+.bv-khoi-video iframe,
+.bv-khoi-video video {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: var(--ban-kinh-vua);
+  background-color: #000;
+}
+
+/* File PDF */
+.bv-khoi-pdf {
+  display: inline-block;
+  padding: var(--khoang-2) var(--khoang-4);
+  border: 1.5px solid var(--mau-vien-dam);
+  border-radius: var(--ban-kinh-nho);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.bv-khoi-pdf:hover {
+  border-color: var(--mau-do);
+  color: var(--mau-do);
+} 
+
+.the-bai-viet-noidung h3 {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+} 
+
+
+/* ------------------------------------------------------------
+   39. GHI ĐÈ: THẺ TIN TỨC "XEM THÊM" CHỈ DÀI XUỐNG DƯỚI
+   - Giữ nguyên chiều rộng thẻ và tỉ lệ ảnh đại diện
+   - Chỉ hiện toàn bộ nội dung CHỮ (ẩn ảnh/video/PDF trong phần bung)
+   - Bấm vào ảnh/tiêu đề vẫn mở bai-viet.html như cũ
+   ------------------------------------------------------------ */
+.the-bai-viet-xem-them.dang-mo {
+  grid-column: auto; /* không chiếm trọn hàng nữa */
+}
+
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-anh,
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-anh-rong {
+  aspect-ratio: 16 / 10; /* giữ tỉ lệ ảnh như lúc thu gọn */
+}
+
+.the-bai-viet-xem-them.dang-mo .the-bai-viet-day-du {
+  max-width: none;
+  margin: var(--khoang-2) 0 var(--khoang-3);
+  font-size: 0.92rem;
+}
+
+/* Phần bung chỉ hiện chữ: ẩn mọi khối ảnh, video, PDF */
+.the-bai-viet-day-du .bv-anh,
+.the-bai-viet-day-du [class*="bv-khoi-anh"],
+.the-bai-viet-day-du .bv-khoi-video,
+.the-bai-viet-day-du .bv-khoi-pdf {
+  display: none;
+} 
+
+@media (max-width: 780px) {
+  .KHUNG-ANH {
+    height: auto !important;
+    aspect-ratio: auto !important;
+  }
+
+  .KHUNG-ANH img {
+    width: 100%;
+    height: auto !important;
+    object-fit: contain !important; /* hiện đủ cả ảnh */
+  }
+} 
+
+@media (max-width: 780px) {
+  .cuoc-doi-anh-khung {
+    height: auto !important;
+    aspect-ratio: auto !important;
+  }
+
+  .cuoc-doi-anh-khung img {
+    width: 100%;
+    height: auto !important;
+    object-fit: contain !important; /* hiện đủ cả ảnh */
+  }
+} 
+
+.cuoc-doi-anh-khung {
+  height: auto !important;
+  aspect-ratio: 3 / 4 !important;   /* khung cao hơn, hợp ảnh chân dung */
+}
+
+.cuoc-doi-anh-khung img {
+  width: 100%;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: top center !important;  /* giữ trọn phần đầu */
+}
+
+@media (max-width: 780px) {
+  .cuoc-doi-anh-khung {
+    aspect-ratio: 4 / 5 !important;
+  }
+} 
+
+.banner-anh-moi {
+  height: auto;          /* bỏ chiều cao cố định 280px */
+  aspect-ratio: 2.43 / 1; /* tỉ lệ ảnh banner của bạn (372 / 153) */
+  overflow: hidden;
+}
+.banner-anh-moi img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;     /* khung đã đúng tỉ lệ nên gần như không bị cắt */
+}

@@ -1,0 +1,958 @@
+/* ============================================================
+   FILE: assets/css/admin.css
+   MỤC ĐÍCH: Định dạng giao diện cho khu vực admin (login, dashboard,
+   form thêm/sửa bài viết, quản lý tour...). File này CHỈ nên nhúng
+   ở các trang trong thư mục admin/, không dùng cho trang public.
+   ============================================================ */
+
+/* Reset mặc định: xoá margin/padding mặc định của trình duyệt,
+   và box-sizing: border-box giúp khi đặt width/padding cho 1 phần tử,
+   padding sẽ KHÔNG cộng dồn làm phần tử to hơn kích thước đã đặt
+   -> dễ tính toán layout hơn */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Định dạng chung cho toàn bộ trang: font chữ, màu nền, màu chữ mặc định */
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background-color: #f4f5f7;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------
+   KHUNG ĐĂNG NHẬP (dùng ở admin/login.html)
+   ------------------------------------------------------------ */
+
+/* .khung-dang-nhap: khối bao ngoài, canh giữa màn hình theo cả
+   chiều ngang lẫn chiều dọc bằng flexbox */
+.khung-dang-nhap {
+  min-height: 100vh; /* chiếm tối thiểu toàn bộ chiều cao màn hình */
+  display: flex;
+  align-items: center; /* canh giữa theo chiều dọc */
+  justify-content: center; /* canh giữa theo chiều ngang */
+  padding: 20px;
+}
+
+/* .the-dang-nhap: cái "thẻ" hình chữ nhật chứa form đăng nhập,
+   có bóng đổ nhẹ và bo góc để trông giống 1 card hiện đại */
+.the-dang-nhap {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 380px; /* không cho card giãn quá rộng trên màn hình lớn */
+}
+
+/* Tiêu đề "Đăng nhập quản trị" phía trên form */
+.the-dang-nhap h1 {
+  font-size: 22px;
+  margin-bottom: 8px;
+  text-align: center;
+  color: #a6192e; /* màu đỏ truyền thống, gợi liên tưởng chủ đề */
+}
+
+/* Dòng mô tả nhỏ phía dưới tiêu đề */
+.the-dang-nhap p.mo-ta {
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* Mỗi cặp label + input được bọc trong 1 div.nhom-truong,
+   margin-bottom tạo khoảng cách giữa các trường với nhau */
+.nhom-truong {
+  margin-bottom: 16px;
+}
+
+/* Nhãn (label) phía trên mỗi ô nhập liệu */
+.nhom-truong label {
+  display: block; /* cho label xuống dòng riêng, không nằm cùng dòng với input */
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+/* Định dạng chung cho ô nhập email và mật khẩu */
+.nhom-truong input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none; /* bỏ viền xanh mặc định của trình duyệt khi click vào ô */
+  transition: border-color 0.2s; /* hiệu ứng đổi màu viền mượt khi focus */
+}
+
+/* Khi người dùng click vào ô input (đang gõ), đổi màu viền để dễ nhận biết */
+.nhom-truong input:focus {
+  border-color: #a6192e;
+}
+
+/* Nút "Đăng nhập" */
+.nut-dang-nhap {
+  width: 100%;
+  padding: 12px;
+  background-color: #a6192e;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer; /* con trỏ chuột đổi thành hình bàn tay khi hover, báo hiệu bấm được */
+  transition: background-color 0.2s;
+}
+
+/* Đổi màu nút hơi đậm hơn khi rê chuột vào, tạo phản hồi thị giác */
+.nut-dang-nhap:hover {
+  background-color: #8a1526;
+}
+
+/* Nút khi đang bị vô hiệu hoá (VD: trong lúc đang gửi yêu cầu đăng nhập,
+   tránh người dùng bấm nhiều lần liên tiếp) */
+.nut-dang-nhap:disabled {
+  background-color: #c98e96;
+  cursor: not-allowed;
+}
+
+/* Dòng hiển thị thông báo lỗi (VD: sai mật khẩu) — mặc định ẩn đi
+   bằng cách không hiển thị nếu rỗng nội dung, việc ẩn/hiện xử lý bằng JS */
+.thong-bao-loi {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background-color: #fdecea;
+  color: #a6192e;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------
+   BỐ CỤC CHUNG CHO CÁC TRANG ADMIN SAU KHI ĐĂNG NHẬP
+   (dashboard, quản lý bài viết, quản lý tour...)
+   ------------------------------------------------------------ */
+
+/* Thanh header cố định trên cùng, chứa tên chuyên mục + nút đăng xuất */
+.header-admin {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* đẩy 2 phần tử con ra 2 đầu (trái - phải) */
+}
+
+/* Tiêu đề bên trái thanh header */
+.header-admin h1 {
+  font-size: 18px;
+  color: #a6192e;
+}
+
+/* Nút đăng xuất bên phải thanh header */
+.nut-dang-xuat {
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid #a6192e;
+  color: #a6192e;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.nut-dang-xuat:hover {
+  background-color: #a6192e;
+  color: #ffffff;
+}
+
+/* Vùng nội dung chính bên dưới header, có khoảng đệm xung quanh */
+.noi-dung-admin {
+  padding: 32px 24px;
+  max-width: 960px;
+  margin: 0 auto; /* canh giữa khối nội dung theo chiều ngang trên màn hình rộng */
+}
+
+/* ------------------------------------------------------------
+   LIÊN KẾT ĐIỀU HƯỚNG NHANH TRONG DASHBOARD (các khối "thẻ" dẫn
+   sang trang quản lý bài viết, quản lý tour...)
+   ------------------------------------------------------------ */
+.danh-sach-lien-ket {
+  display: flex;
+  flex-wrap: wrap; /* tự xuống dòng khi màn hình hẹp, không bị tràn ngang */
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.the-lien-ket {
+  display: block;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 20px;
+  width: 220px;
+  text-decoration: none; /* bỏ gạch chân mặc định của thẻ <a> */
+  color: #1a1a1a;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.the-lien-ket:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #a6192e;
+}
+
+.the-lien-ket h3 {
+  font-size: 15px;
+  color: #a6192e;
+  margin-bottom: 4px;
+}
+
+.the-lien-ket p {
+  font-size: 13px;
+  color: #666;
+}
+
+/* ------------------------------------------------------------
+   FORM THÊM/SỬA BÀI VIẾT (admin/bai-viet-form.html)
+   ------------------------------------------------------------ */
+
+/* Mỗi nhóm nhãn + ô nhập trong form bài viết, cách nhau 1 khoảng đều */
+.nhom-truong-form {
+  margin-bottom: 20px;
+}
+
+.nhom-truong-form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+/* Dùng chung cho input text, select, textarea trong form bài viết
+   để đồng nhất kiểu dáng, tránh lặp lại nhiều lần */
+.nhom-truong-form input[type="text"],
+.nhom-truong-form input[type="date"],
+.nhom-truong-form input[type="file"],
+.nhom-truong-form select,
+.nhom-truong-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit; /* để textarea/select dùng chung font với body,
+                             không bị đổi sang font mặc định của trình duyệt */
+  outline: none;
+}
+
+.nhom-truong-form textarea {
+  resize: vertical; /* chỉ cho phép kéo giãn theo chiều cao,
+                         không cho kéo ngang làm vỡ layout */
+  min-height: 100px;
+}
+
+/* Dòng chú thích nhỏ phía dưới 1 số ô nhập, giải thích thêm cho admin */
+.ghi-chu-truong {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* Dòng chứa checkbox "Xuất bản ngay", canh checkbox và label nằm ngang hàng */
+.dong-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dong-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+/* Khung xem trước ảnh đại diện sau khi chọn file, trước khi lưu */
+.xem-truoc-anh {
+  margin-top: 10px;
+  max-width: 240px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  display: none; /* mặc định ẩn, JS sẽ hiện ra khi có ảnh để xem trước */
+}
+
+/* Lưới hiển thị nhiều ảnh phụ (danh_sach_anh) đã chọn/đã có sẵn */
+.luoi-anh-phu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* Mỗi ô trong lưới ảnh phụ: chứa ảnh + nút xoá ảnh đó khỏi danh sách */
+.o-anh-phu {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.o-anh-phu img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* ảnh lấp đầy khung vuông, không bị méo tỉ lệ */
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+/* Nút "x" nhỏ ở góc mỗi ảnh phụ để xoá ảnh đó */
+.nut-xoa-anh-phu {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #a6192e;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Nút "Lưu bài viết" ở cuối form — dùng lại kiểu nút chính giống nút đăng nhập */
+.nut-luu-bai-viet {
+  padding: 12px 28px;
+  background-color: #a6192e;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nut-luu-bai-viet:hover {
+  background-color: #8a1526;
+}
+
+.nut-luu-bai-viet:disabled {
+  background-color: #c98e96;
+  cursor: not-allowed;
+}
+
+/* Nút "Huỷ" quay lại trang danh sách mà không lưu */
+.nut-huy {
+  padding: 12px 28px;
+  background-color: transparent;
+  color: #666;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  margin-left: 10px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* Thông báo kết quả lưu bài (thành công/thất bại) */
+.thong-bao-ket-qua {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.thong-bao-ket-qua.thanh-cong {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+}
+
+.thong-bao-ket-qua.that-bai {
+  background-color: #fdecea;
+  color: #a6192e;
+}
+
+/* ------------------------------------------------------------
+   TRANG DANH SÁCH QUẢN LÝ BÀI VIẾT (admin/quan-ly-bai-viet.html)
+   ------------------------------------------------------------ */
+
+/* Thanh công cụ trên cùng: bộ lọc theo loại + nút "Thêm bài viết mới" */
+.thanh-cong-cu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.thanh-cong-cu select {
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.nut-them-moi {
+  padding: 10px 18px;
+  background-color: #a6192e;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Bảng danh sách bài viết */
+.bang-bai-viet {
+  width: 100%;
+  border-collapse: collapse; /* gộp viền các ô lại, tránh viền đôi xấu */
+  background-color: #ffffff;
+  border-radius: 10px;
+  overflow: hidden; /* để bo góc border-radius áp dụng được lên bảng */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.bang-bai-viet th,
+.bang-bai-viet td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+.bang-bai-viet th {
+  background-color: #f9f9f9;
+  font-weight: 600;
+  color: #444;
+}
+
+/* Nhãn nhỏ (badge) hiển thị loại bài viết trong bảng, có màu nền nhạt */
+.nhan-loai {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  background-color: #f0f0f0;
+  color: #555;
+}
+
+/* Nhãn trạng thái xuất bản / nháp */
+.nhan-trang-thai {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.nhan-trang-thai.da-xuat-ban {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+}
+
+.nhan-trang-thai.chua-xuat-ban {
+  background-color: #fff4e5;
+  color: #b06a00;
+}
+
+/* Nhóm 2 nút "Sửa" và "Xoá" trong mỗi dòng của bảng */
+.nhom-nut-hanh-dong {
+  display: flex;
+  gap: 8px;
+}
+
+.nut-sua,
+.nut-xoa {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.nut-sua {
+  background-color: #eef2ff;
+  color: #3b4ec2;
+}
+
+.nut-xoa {
+  background-color: #fdecea;
+  color: #a6192e;
+}
+
+/* Dòng thông báo khi danh sách rỗng (chưa có bài viết nào) */
+.thong-bao-rong {
+  text-align: center;
+  padding: 40px 20px;
+  color: #888;
+  font-size: 14px;
+}
+
+/* Khối xem trước tên file PDF đính kèm trong form bài viết */
+.file-dinh-kem-xem-truoc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #f4f5f7;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+  width: fit-content;
+}
+
+.nut-xoa-file-dinh-kem {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #a6192e;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Khối xem trước tên file PDF đính kèm trong form tư liệu */
+.file-dinh-kem-xem-truoc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #f4f5f7;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+  width: fit-content;
+}
+
+.nut-xoa-file-dinh-kem {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #a6192e;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------
+   QUẢN LÝ SÁCH (admin/quan-ly-sach.html, admin/sach-form.html)
+   Dùng lại gần như toàn bộ class đã có ở "TRANG DANH SÁCH QUẢN LÝ
+   BÀI VIẾT" và "FORM THÊM/SỬA BÀI VIẾT" phía trên (thanh-cong-cu,
+   bang-bai-viet, nhom-truong-form, nut-luu-bai-viet...), chỉ thêm
+   vài class riêng cho phần xem trước ảnh bìa sách dạng dọc (3:4)
+   khác tỉ lệ ảnh đại diện bài viết (16:9).
+   ------------------------------------------------------------ */
+.xem-truoc-anh-bia-sach {
+  margin-top: 10px;
+  width: 140px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  display: none; /* JS hiện ra khi đã nhập URL ảnh hợp lệ */
+} 
+
+/* ============================================================
+   DÁN PHẦN NÀY VÀO CUỐI FILE assets/css/admin.css
+   Trình soạn bài kiểu khối + Xem trước + Tự lưu nháp
+   ============================================================ */
+
+.khoi-danh-sach {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.khoi-trong {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed #b9b9b9;
+  border-radius: 8px;
+  color: #666;
+  text-align: center;
+}
+
+.khoi-noi-dung {
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.khoi-noi-dung.dang-keo {
+  opacity: 0.45;
+}
+
+.khoi-noi-dung.dich-tha {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.25);
+}
+
+.khoi-thanh-tren {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e6e6e6;
+  border-radius: 8px 8px 0 0;
+  background: #f6f6f6;
+}
+
+.khoi-tay-cam {
+  padding: 4px 6px;
+  font-size: 18px;
+  line-height: 1;
+  color: #777;
+  cursor: grab;
+  user-select: none;
+}
+
+.khoi-tay-cam:active {
+  cursor: grabbing;
+}
+
+.khoi-ten-loai {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.khoi-nut-nhom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.khoi-nut-nhom button {
+  padding: 4px 10px;
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.khoi-nut-nhom button:hover:not(:disabled) {
+  background: #eee;
+}
+
+.khoi-nut-nhom button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.khoi-nut-nhom .khoi-nut-xoa {
+  color: #c62828;
+  border-color: #e0a8a8;
+}
+
+.khoi-than {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.khoi-than textarea,
+.khoi-than input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.khoi-than select {
+  align-self: flex-start;
+}
+
+.khoi-anh-xem-truoc {
+  align-self: flex-start;
+  max-width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.khoi-ten-file {
+  margin: 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.thanh-them-khoi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.nut-them-khoi {
+  padding: 6px 14px;
+  border: 1px solid #1a73e8;
+  border-radius: 999px;
+  background: #fff;
+  color: #1a73e8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nut-them-khoi:hover {
+  background: #e8f0fe;
+}
+
+.nut-xem-truoc {
+  padding: 8px 16px;
+  border: 1px solid #888;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.trang-thai-tu-luu {
+  margin-left: 12px;
+  font-size: 13px;
+  color: #666;
+}
+
+/* ---------- Khung xem trước ---------- */
+.khung-xem-truoc {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  padding: 24px 12px;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.khung-xem-truoc.mo {
+  display: block;
+}
+
+.xem-truoc-hop {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.xem-truoc-dong {
+  display: block;
+  margin: 0 0 16px auto;
+  padding: 6px 14px;
+  border: 1px solid #888;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* ---------- Hiển thị các khối nội dung (xem trước; trang công khai dùng lại ở bước sau) ---------- */
+.bv-tieu-de {
+  margin: 0 0 20px;
+}
+
+.bv-khoi {
+  margin: 0 0 16px;
+  line-height: 1.7;
+}
+
+.bv-khoi-tieu-de {
+  margin: 28px 0 8px;
+}
+
+.bv-khoi-trich-dan {
+  margin: 0 0 16px;
+  padding: 4px 16px;
+  border-left: 4px solid #999;
+  color: #444;
+  font-style: italic;
+}
+
+.bv-khoi-trich-dan p {
+  margin: 0;
+}
+
+.bv-khoi-trich-dan footer {
+  margin-top: 6px;
+  font-size: 14px;
+  font-style: normal;
+  color: #666;
+}
+
+.bv-khoi-anh {
+  margin: 0 0 16px;
+}
+
+.bv-khoi-anh img {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.bv-khoi-anh figcaption {
+  margin-top: 6px;
+  font-size: 14px;
+  color: #666;
+}
+
+.bv-khoi-thu-vien {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.bv-khoi-thu-vien img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.bv-khoi-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+}
+
+.bv-khoi-video iframe,
+.bv-khoi-video video {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 6px;
+}
+
+.bv-khoi-pdf {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+@media (max-width: 600px) {
+  .khoi-thanh-tren {
+    flex-wrap: wrap;
+  }
+} 
+
+/* ============================================================
+   DÁN THÊM PHẦN NÀY VÀO CUỐI FILE assets/css/admin.css
+   (dán sau phần admin-them.css đã gửi trước đó)
+   Khối Ảnh nhiều ảnh: giao diện soạn + cách hiển thị
+   ============================================================ */
+
+/* ---------- Trong trình soạn ---------- */
+.luoi-o-anh-khoi {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.o-anh-khoi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.o-anh-khoi img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.o-anh-khoi input[type="text"] {
+  font-size: 13px;
+}
+
+.o-anh-khoi-nut {
+  display: flex;
+  gap: 4px;
+}
+
+.o-anh-khoi-nut button {
+  padding: 3px 8px;
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.o-anh-khoi-nut button:hover:not(:disabled) {
+  background: #eee;
+}
+
+.o-anh-khoi-nut button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.o-anh-khoi-nut .khoi-nut-xoa {
+  margin-left: auto;
+  color: #c62828;
+  border-color: #e0a8a8;
+}
+
+/* ---------- Hiển thị khối ảnh (xem trước, sau này cả trang công khai) ---------- */
+.bv-anh {
+  margin: 0;
+}
+
+.bv-anh figcaption {
+  margin-top: 6px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* 1 ảnh: hiển thị lớn */
+.bv-khoi-anh-don .bv-anh img {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* Nhiều ảnh, xếp lưới */
+.bv-khoi-anh-luoi {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.bv-khoi-anh-luoi .bv-anh img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+/* Nhiều ảnh, xếp dọc */
+.bv-khoi-anh-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bv-khoi-anh-doc .bv-anh img {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+}

@@ -1,0 +1,494 @@
+/* ============================================================
+   FILE: assets/css/khong-gian-3d.css
+   MỤC ĐÍCH: CSS RIÊNG cho trang public khong-gian-3d.html (bố cục
+   danh sách scene bên trái + khung xem 360° bên phải cho khách
+   tham quan, khác với trang admin/quan-ly-tour.html).
+
+   Đặt THÀNH FILE RIÊNG (không sửa style.css có sẵn), toàn bộ class
+   dùng tiền tố "kg3d-" để chắc chắn không trùng tên với bất kỳ class
+   nào đã có trong style.css hay các file CSS khác của dự án.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   PHẦN GIỚI THIỆU ĐẦU TRANG
+   ------------------------------------------------------------ */
+.kg3d-gioi-thieu {
+  padding: 2.5rem 1.5rem 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.kg3d-gioi-thieu h1 {
+  margin: 0 0 0.75rem;
+}
+
+.kg3d-gioi-thieu p {
+  color: #555;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------
+   BỐ CỤC CHÍNH: danh sách scene (trái) + khung xem 360° (phải)
+   Trên màn hình hẹp, chuyển thành xếp chồng dọc (danh sách lên
+   trên dạng thanh cuộn ngang, khung xem xuống dưới).
+   ------------------------------------------------------------ */
+.kg3d-khu-vuc-tour {
+  padding: 0 1.5rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.kg3d-bo-cuc {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 780px) {
+  .kg3d-bo-cuc {
+    grid-template-columns: 1fr;
+  }
+
+  .kg3d-danh-sach-scene ul {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.5rem;
+  }
+
+  .kg3d-scene-item {
+    flex-shrink: 0;
+  }
+}
+
+/* ------------------------------------------------------------
+   DANH SÁCH SCENE (cột trái / thanh cuộn ngang trên di động)
+   ------------------------------------------------------------ */
+.kg3d-danh-sach-scene {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  padding: 1rem;
+}
+
+.kg3d-danh-sach-scene h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.kg3d-danh-sach-scene ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kg3d-scene-item {
+  margin-bottom: 0.5rem;
+}
+
+.kg3d-scene-item button {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.kg3d-scene-item button:hover {
+  border-color: #a6192e;
+}
+
+/* Scene đang được xem, tô nền đậm để khách biết đang đứng ở đâu */
+.kg3d-scene-item.kg3d-dang-chon button {
+  background-color: #a6192e;
+  border-color: #a6192e;
+  color: #fff;
+  font-weight: 600;
+}
+
+.kg3d-thong-bao {
+  padding: 0.75rem;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+/* ------------------------------------------------------------
+   KHUNG XEM ẢNH 360° (cột phải)
+   ------------------------------------------------------------ */
+.kg3d-khung-vien {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #111;
+}
+
+/* Chiều cao cố định bằng px — Pannellum tính kích thước canvas dựa
+   theo kích thước THẬT của khung chứa, không tự co giãn theo nội
+   dung bên trong được. Trên màn hình hẹp giảm chiều cao lại cho vừa
+   khung hình di động. */
+.kg3d-vung-anh-360 {
+  width: 100%;
+  height: 520px;
+}
+
+@media (max-width: 780px) {
+  .kg3d-vung-anh-360 {
+    height: 360px;
+  }
+}
+
+.kg3d-thong-bao-loi {
+  padding: 1rem;
+  color: #a6192e;
+  background-color: #fbe9ea;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------
+   ĐIỂM ĐÁNH DẤU HOTSPOT TRÊN ẢNH 360°
+   (Pannellum tự định vị đúng chỗ trên mặt cầu ảnh, CSS chỉ lo hình
+   dáng/màu sắc — cùng quy ước màu với trang admin để nhất quán)
+   ------------------------------------------------------------ */
+.kg3d-hotspot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+/* Xanh dương: hotspot loại "info" (hiện thông tin khi bấm) */
+.kg3d-hotspot-info {
+  background-color: #2b6cb0;
+}
+
+/* Xanh lá: hotspot loại "scene" (chuyển sang scene khác khi bấm) */
+.kg3d-hotspot-scene {
+  background-color: #2f855a;
+}
+
+/* ------------------------------------------------------------
+   MODAL HIỆN THÔNG TIN (khi bấm hotspot loại "info")
+   ------------------------------------------------------------ */
+.kg3d-modal-nen {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1000;
+}
+
+.kg3d-modal-hop {
+  position: relative;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 1.75rem 1.5rem 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.kg3d-modal-hop h3 {
+  margin: 0 0 0.75rem;
+  padding-right: 1.5rem;
+}
+
+.kg3d-modal-hop p {
+  margin: 0;
+  color: #444;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.kg3d-modal-dong {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.85rem;
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #888;
+}
+
+.kg3d-modal-dong:hover {
+  color: #a6192e;
+}
+
+.kg3d-modal-anh {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 0.75rem 0;
+}
+
+/* Khung xem 360° BẮT BUỘC phải có chiều cao cụ thể,
+   nếu không Pannellum không có chỗ vẽ và khung xẹp về 0px */
+.kg3d-vung-anh-360 {
+  width: 100%;
+  height: 550px;
+}
+
+/* Tránh cột phải bị co về 0 khi bố cục dùng grid/flex */
+.kg3d-khung-vien {
+  min-width: 0;
+}
+
+/* Màn hình nhỏ (điện thoại): giảm chiều cao cho vừa màn hình */
+@media (max-width: 768px) {
+  .kg3d-vung-anh-360 {
+    height: 380px;
+  }
+}
+
+/* ===== ĐIỀU KHIỂN ĐỔI GÓC NHÌN ===== */
+.kg3d-khung-xem {
+  position: relative;
+}
+
+/* Lớp phủ trong suốt, không chặn thao tác kéo xoay ảnh bên dưới */
+.kg3d-dieu-khien-goc {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+.kg3d-dieu-khien-goc > * {
+  pointer-events: auto;
+}
+
+.kg3d-mui-ten {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(166, 25, 46, 0.9);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s, background 0.15s;
+}
+.kg3d-mui-ten:hover {
+  background: #a6192e;
+  transform: translateY(-50%) scale(1.1);
+}
+.kg3d-mui-ten-trai { left: 14px; }
+.kg3d-mui-ten-phai { right: 14px; }
+
+.kg3d-nut-toan-man-hinh {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* Các nút 1-2-3-4 ở giữa phía dưới */
+.kg3d-cham-goc {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+}
+.kg3d-cham-goc button {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #333;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kg3d-cham-goc button.kg3d-goc-dang-chon {
+  background: #a6192e;
+  color: #fff;
+}
+
+/* Khi bật toàn màn hình */
+.kg3d-khung-xem:fullscreen {
+  background: #000;
+}
+.kg3d-khung-xem:fullscreen .kg3d-vung-anh-360 {
+  height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .kg3d-mui-ten { width: 38px; height: 38px; font-size: 16px; }
+} 
+
+.kg2d-khu-vuc { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+
+.kg2d-nen { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+.kg2d-anh-nen { display: block; border: 1px solid var(--mau-vien); border-radius: var(--ban-kinh-vua); overflow: hidden; }
+.kg2d-anh-nen img { width: 100%; height: auto; }
+
+.kg2d-tieu-de { margin-bottom: 16px; }
+.kg2d-luoi { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.kg2d-anh-the { display: block; aspect-ratio: 4 / 3; border: 1px solid var(--mau-vien); border-radius: var(--ban-kinh-vua); overflow: hidden; }
+.kg2d-anh-the img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+.kg2d-anh-the:hover img { transform: scale(1.04); }
+
+.kg2d-thong-bao { text-align: center; color: var(--mau-chu-nhat); padding: 24px 0; } 
+
+/* ===== KHUNG ẢNH 2D — dán vào CUỐI file CSS hiện có ===== */
+
+.khung-anh-2d {
+  --mau-do: #8f1d2c;
+  --mau-vang: #f2c14e;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.khung-anh-2d__man-hinh {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #1a1412;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(60, 20, 20, 0.25);
+}
+
+.khung-anh-2d__anh {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* ảnh vừa khung, không bị cắt */
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Mũi tên 2 bên */
+.khung-anh-2d__mui-ten {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.khung-anh-2d__mui-ten--trai { left: 14px; }
+.khung-anh-2d__mui-ten--phai { right: 14px; }
+.khung-anh-2d__mui-ten:hover { background: var(--mau-do); }
+
+/* Nút toàn màn hình */
+.khung-anh-2d__nut-toan-man-hinh {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.khung-anh-2d__nut-toan-man-hinh:hover { background: var(--mau-do); }
+
+/* Dãy nút số */
+.khung-anh-2d__danh-sach-so {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.khung-anh-2d__so {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--mau-do);
+  background: #fff;
+  color: var(--mau-do);
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.khung-anh-2d__so:hover { background: #f8e6e8; }
+.khung-anh-2d__so.dang-chon {
+  background: var(--mau-do);
+  color: var(--mau-vang);
+}
+
+.khung-anh-2d__mui-ten:focus-visible,
+.khung-anh-2d__nut-toan-man-hinh:focus-visible,
+.khung-anh-2d__so:focus-visible {
+  outline: 3px solid var(--mau-vang);
+  outline-offset: 2px;
+}
+
+/* Khi bật toàn màn hình: phủ kín màn hình, nền đen */
+.khung-anh-2d:fullscreen {
+  max-width: none;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  box-sizing: border-box;
+}
+.khung-anh-2d:fullscreen .khung-anh-2d__man-hinh {
+  flex: 1;
+  aspect-ratio: auto;
+  border-radius: 0;
+  box-shadow: none;
+  background: #000;
+}
+.khung-anh-2d:fullscreen .khung-anh-2d__so { background: #222; color: #fff; border-color: #888; }
+.khung-anh-2d:fullscreen .khung-anh-2d__so.dang-chon { background: var(--mau-do); color: var(--mau-vang); border-color: var(--mau-do); }
+
+/* Điện thoại */
+@media (max-width: 600px) {
+  .khung-anh-2d__mui-ten { width: 38px; height: 38px; font-size: 16px; }
+  .khung-anh-2d__so { width: 34px; height: 34px; font-size: 14px; }
+}

@@ -1,0 +1,365 @@
+/* ============================================================
+   FILE: assets/css/tour-admin.css
+   MỤC ĐÍCH: CSS RIÊNG cho trang admin/quan-ly-tour.html (bố cục 2
+   cột: danh sách scene bên trái + khung xem trước/form bên phải).
+
+   Đặt THÀNH FILE RIÊNG thay vì thêm vào assets/css/admin.css có sẵn,
+   để không cần đoán/đụng vào các class đã tồn tại trong đó — file
+   này CHỈ chứa các class MỚI, dùng tiền tố "scene-"/"tour-"/"hotspot-"
+   để chắc chắn không trùng tên với bất kỳ class nào đã có.
+
+   VẪN DÙNG CHUNG các class chữ/nút/form cơ bản đã có sẵn trong
+   admin.css (VD: .header-admin, .nut-them-moi, .nhom-truong-form,
+   .nut-luu-bai-viet, .nut-huy, .thong-bao-ket-qua...) — file HTML
+   nhúng CẢ 2 file CSS (admin.css TRƯỚC, tour-admin.css SAU).
+
+   CẬP NHẬT SO VỚI PHIÊN BẢN TRƯỚC: bổ sung khối CSS cho KHU VỰC
+   QUẢN LÝ HOTSPOT ở cuối file (phần "PHẦN 2 (BỔ SUNG)").
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   BỐ CỤC 2 CỘT CHÍNH
+   Cột trái (danh sách scene) cố định độ rộng vừa phải, cột phải
+   (xem trước/form) chiếm hết phần còn lại. Trên màn hình hẹp,
+   chuyển thành xếp chồng dọc (cột trái lên trên, cột phải xuống dưới).
+   ------------------------------------------------------------ */
+.bo-cuc-tour {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .bo-cuc-tour {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------
+   CỘT TRÁI: DANH SÁCH SCENE
+   ------------------------------------------------------------ */
+.cot-danh-sach-scene {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.danh-sach-scene {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.muc-scene {
+  border-bottom: 1px solid #eee;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.muc-scene:last-child {
+  border-bottom: none;
+}
+
+/* Scene đang được chọn để xem trước ở cột phải, tô nền nhạt để dễ
+   nhận biết đang xem đúng scene nào trong danh sách dài */
+.muc-scene.dang-chon {
+  background-color: #f6f6f6;
+}
+
+/* Nút bấm vào tên scene để chọn xem trước — kéo dài hết chiều rộng
+   để vùng bấm rộng rãi, dễ chạm trên di động */
+.scene-ten-nut {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  text-align: left;
+  width: 100%;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.scene-thu-tu {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #888;
+  flex-shrink: 0;
+}
+
+/* Nhãn "Scene bắt đầu", chỉ hiện ở ĐÚNG 1 scene đang được đặt làm
+   scene mở đầu tour (cột la_scene_bat_dau = true) */
+.nhan-scene-bat-dau {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #a6192e;
+  background-color: #fbe9ea;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* Nhóm nút hành động (Sửa/Xoá/Đặt làm mặc định) dưới mỗi scene */
+.scene-hanh-dong {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.scene-hanh-dong button {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.scene-hanh-dong button:hover {
+  border-color: #a6192e;
+  color: #a6192e;
+}
+
+/* ------------------------------------------------------------
+   CỘT PHẢI: KHUNG XEM TRƯỚC / FORM THÊM-SỬA SCENE
+   ------------------------------------------------------------ */
+.cot-noi-dung-scene {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.25rem;
+  background-color: #fff;
+  min-height: 300px;
+}
+
+/* Khung chứa trình xem ảnh 360° (Pannellum tự vẽ nội dung bên trong
+   div này) — BẮT BUỘC phải có chiều cao cố định bằng px, vì
+   Pannellum tính toán kích thước canvas dựa theo kích thước thật
+   của khung chứa, không tự co giãn theo nội dung bên trong được */
+.khung-preview-360 {
+  width: 100%;
+  height: 420px;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #111;
+}
+
+/* Khi đang ở "chế độ chờ bấm lên ảnh để đặt hotspot" (lớp này được
+   JS thêm/bớt động vào khung-preview-360), đổi con trỏ chuột thành
+   dấu cộng để admin biết rõ đang ở chế độ đặc biệt, khác với con
+   trỏ "bàn tay nắm/kéo" mặc định của Pannellum khi xoay ảnh xem.
+   Cần !important vì Pannellum tự gán cursor riêng bằng CSS của nó,
+   có độ ưu tiên (specificity) cao hơn 1 class thường. */
+.khung-preview-360.dang-dat-hotspot {
+  cursor: crosshair !important;
+}
+
+.tieu-de-scene-xem-truoc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.tieu-de-scene-xem-truoc h2 {
+  margin: 0;
+}
+
+.mo-ta-scene-xem-truoc {
+  color: #666;
+  margin: 0.75rem 0 0;
+}
+
+/* ============================================================
+   PHẦN 2 (BỔ SUNG): KHU VỰC QUẢN LÝ HOTSPOT
+   Nằm ngay dưới khung xem trước 360° (.khung-preview-360) ở trên,
+   trong cùng cột phải .cot-noi-dung-scene.
+   ============================================================ */
+
+.khu-vuc-hotspot {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #eee;
+}
+
+.thanh-cong-cu-hotspot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.thanh-cong-cu-hotspot h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Dòng ghi chú hướng dẫn "Bấm vào ảnh để đặt hotspot", chỉ hiện khi
+   đang ở chế độ chờ bấm lên ảnh (JS bật/tắt bằng style.display) */
+.ghi-chu-dat-hotspot {
+  background-color: #fff8e6;
+  border: 1px solid #f0d998;
+  border-radius: 6px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.85rem;
+  margin: 0 0 0.85rem;
+}
+
+/* Nút nhỏ dùng chung trong khu vực hotspot (nút "Huỷ" cạnh ghi chú,
+   nút "Đặt lại vị trí" trong form) — kiểu link, không tô nền để
+   không cạnh tranh thị giác với nút Lưu/Huỷ chính của form */
+.nut-huy-nho {
+  background: none;
+  border: none;
+  color: #a6192e;
+  text-decoration: underline;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.nut-huy-nho:hover {
+  color: #7a1220;
+}
+
+/* Nút "Xoá hotspot này" ngay trong form Sửa — tô màu đỏ nhạt để
+   phân biệt rõ với nút Lưu/Huỷ, tránh admin bấm nhầm */
+.nut-xoa-nho {
+  background-color: #fbe9ea;
+  border: 1px solid #e3a8ae;
+  color: #a6192e;
+  border-radius: 4px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.nut-xoa-nho:hover {
+  background-color: #f6d3d6;
+}
+
+/* Danh sách hotspot dạng chữ, dưới khung ảnh — mỗi dòng 1 hotspot */
+.danh-sach-hotspot {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.muc-hotspot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.muc-hotspot:last-child {
+  border-bottom: none;
+}
+
+.hotspot-thong-tin {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Nhãn nhỏ phân biệt loại hotspot trong danh sách — xanh dương cho
+   "info" (hiện thông tin), xanh lá cho "scene" (chuyển cảnh), cùng
+   tông màu với điểm đánh dấu tương ứng trên ảnh 360° bên trên */
+.nhan-loai-hotspot {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.nhan-loai-info {
+  color: #2b6cb0;
+  background-color: #e6f0fa;
+}
+
+.nhan-loai-scene {
+  color: #2f855a;
+  background-color: #e6f4ec;
+}
+
+.hotspot-hanh-dong {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hotspot-hanh-dong button {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.hotspot-hanh-dong button:hover {
+  border-color: #a6192e;
+  color: #a6192e;
+}
+
+/* Khối form thêm/sửa hotspot, chèn vào #khu-vuc-form-hotspot —
+   viền + nền nhạt để tách biệt rõ với danh sách hotspot ngay phía trên */
+.form-hotspot {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  background-color: #fafafa;
+}
+
+.form-hotspot h4 {
+  margin: 0 0 0.75rem;
+}
+
+/* ------------------------------------------------------------
+   ĐIỂM ĐÁNH DẤU HOTSPOT TRÊN ẢNH 360°
+   Đây là CSS cho chính phần tử <div> mà Pannellum tạo ra cho mỗi
+   hotspot loại "custom" (xem hàm ganTieuDeHotspot() trong file HTML)
+   — Pannellum tự lo việc ĐỊNH VỊ đúng chỗ trên mặt cầu ảnh 360°,
+   CSS ở đây chỉ cần lo phần HÌNH DÁNG/MÀU SẮC.
+   ------------------------------------------------------------ */
+.hotspot-quan-tri {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+/* Màu xanh dương: hotspot loại "info" (hiện thông tin khi bấm) */
+.hotspot-loai-info {
+  background-color: #2b6cb0;
+}
+
+/* Màu xanh lá: hotspot loại "scene" (chuyển sang scene khác khi bấm) */
+.hotspot-loai-scene {
+  background-color: #2f855a;
+}

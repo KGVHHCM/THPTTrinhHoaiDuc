@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/quan-ly-sach.html
+  MỤC ĐÍCH: Trang quản lý sách, gồm 2 khối ĐỘC LẬP trên CÙNG 1 trang
+  (theo đúng yêu cầu — không tách trang riêng cho "Sách nổi bật"):
+
+    1. "Giới thiệu sách" — bảng "sach", hiện ở carousel trượt ngang
+       trên thu-vien.html. Form thêm/sửa: sach-form.html
+    2. "Sách nổi bật" — bảng "sach_noi_bat" (MỚI), hiện ở vòng xoay
+       3D trên thu-vien.html. Form thêm/sửa: sach-noi-bat-form.html
+
+  Cấu trúc mỗi khối phỏng theo admin/quan-ly-bai-viet.html (thanh
+  công cụ + bảng + nút hành động), giữ nguyên logic khối 1 y hệt
+  bản gốc, chỉ thêm khối 2 bên dưới.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý sách - Không gian văn hóa Hồ Chí Minh</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+  <header class="header-admin">
+    <h1>Quản lý sách</h1>
+
+    <div class="cum-nut-header">
+      <a class="nut-quay-ve-web" href="dashboard.html">← Về trang quản trị</a>
+      <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="noi-dung-admin">
+
+    <!-- ========================================================
+         KHỐI 1: GIỚI THIỆU SÁCH (bảng "sach") — GIỮ NGUYÊN, KHÔNG
+         đổi gì so với bản gốc.
+         ======================================================== -->
+    <h2 style="margin-bottom: 8px;">Giới thiệu sách</h2>
+
+    <div class="thanh-cong-cu">
+      <p style="color: #666; font-size: 13px;">
+        Sách hiển thị ở carousel "Giới thiệu sách" trên trang Thư viện,
+        sắp xếp theo cột "Thứ tự" tăng dần.
+      </p>
+      <a class="nut-them-moi" href="sach-form.html">+ Thêm sách mới</a>
+    </div>
+
+    <table class="bang-bai-viet">
+      <thead>
+        <tr>
+          <th>Ảnh bìa</th>
+          <th>Tên sách</th>
+          <th>Tác giả</th>
+          <th>Thứ tự</th>
+          <th>Trạng thái</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="than-bang-sach">
+        <tr>
+          <td colspan="6" class="thong-bao-rong">Đang tải danh sách sách...</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr style="margin: 40px 0; border: none; border-top: 1px solid #e0e0e0;" />
+
+    <!-- ========================================================
+         KHỐI 2 (MỚI): SÁCH NỔI BẬT (bảng "sach_noi_bat")
+         Cùng khuôn mẫu bảng như khối 1, nhưng thao tác trên bảng
+         Supabase riêng qua các hàm trong assets/js/sach-noi-bat.js.
+         ======================================================== -->
+    <h2 style="margin-bottom: 8px;">Sách nổi bật</h2>
+
+    <div class="thanh-cong-cu">
+      <p style="color: #666; font-size: 13px;">
+        Sách hiển thị ở vòng xoay 3D "Sách nổi bật" trên trang Thư viện,
+        sắp xếp theo cột "Thứ tự" tăng dần.
+      </p>
+      <a class="nut-them-moi" href="sach-noi-bat-form.html">+ Thêm sách nổi bật</a>
+    </div>
+
+    <table class="bang-bai-viet">
+      <thead>
+        <tr>
+          <th>Ảnh bìa</th>
+          <th>Tên sách</th>
+          <th>Tác giả</th>
+          <th>Thứ tự</th>
+          <th>Trạng thái</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="than-bang-sach-noi-bat">
+        <tr>
+          <td colspan="6" class="thong-bao-rong">Đang tải danh sách sách nổi bật...</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/render-card.js"></script>
+  <script src="../assets/js/sach.js"></script>
+  <script src="../assets/js/sach-noi-bat.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // HÀM: khoiTaoTrang
+    // MỤC ĐÍCH: Bảo vệ trang (chỉ admin đã đăng nhập mới xem được),
+    // rồi tải và vẽ CẢ 2 bảng (Giới thiệu sách + Sách nổi bật).
+    // 2 lệnh tải chạy song song (Promise.all) vì hoàn toàn độc lập,
+    // không cần đợi bảng này xong mới tải bảng kia.
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+      await Promise.all([taiVaVeBangSach(), taiVaVeBangSachNoiBat()]);
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiVaVeBangSach
+    // MỤC ĐÍCH: Gọi layToanBoSachAdmin() (sach.js), rồi vẽ từng dòng
+    // sách vào bảng, kèm nút "Sửa" (dẫn sang sach-form.html?id=...)
+    // và nút "Xoá" (gọi xuLyXoaSach())
+    // GIỮ NGUYÊN Y HỆT bản gốc, không đổi gì.
+    // ------------------------------------------------------------
+    async function taiVaVeBangSach() {
+      const oThanBang = document.getElementById("than-bang-sach");
+
+      const ketQua = await layToanBoSachAdmin();
+
+      if (!ketQua.thanhCong) {
+        oThanBang.innerHTML =
+          '<tr><td colspan="6" class="thong-bao-rong">Không tải được danh sách, vui lòng thử lại.</td></tr>';
+        return;
+      }
+
+      if (ketQua.mangSach.length === 0) {
+        oThanBang.innerHTML =
+          '<tr><td colspan="6" class="thong-bao-rong">Chưa có sách nào. Bấm "Thêm sách mới" để bắt đầu.</td></tr>';
+        return;
+      }
+
+      oThanBang.innerHTML = ketQua.mangSach
+        .map(function (sach) {
+          const oAnh = sach.anh_bia
+            ? `<img src="${thoatHtml(sach.anh_bia)}" alt="" style="width:40px;height:52px;object-fit:cover;border-radius:4px;" />`
+            : "—";
+
+          const nhanTrangThai = sach.da_xuat_ban
+            ? '<span class="nhan-trang-thai da-xuat-ban">Đang hiện</span>'
+            : '<span class="nhan-trang-thai chua-xuat-ban">Đang ẩn</span>';
+
+          return `
+            <tr>
+              <td>${oAnh}</td>
+              <td>${thoatHtml(sach.ten_sach)}</td>
+              <td>${thoatHtml(sach.tac_gia || "—")}</td>
+              <td>${sach.thu_tu}</td>
+              <td>${nhanTrangThai}</td>
+              <td>
+                <div class="nhom-nut-hanh-dong">
+                  <a class="nut-sua" href="sach-form.html?id=${encodeURIComponent(sach.id)}">Sửa</a>
+                  <button class="nut-xoa" onclick="xuLyXoaSach('${sach.id}', '${thoatHtml(sach.ten_sach).replace(/'/g, "\\'")}')">Xoá</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyXoaSach
+    // MỤC ĐÍCH: Hỏi xác nhận trước khi xoá (tránh bấm nhầm mất dữ
+    // liệu), rồi gọi xoaSach() (sach.js) và vẽ lại bảng
+    // GIỮ NGUYÊN Y HỆT bản gốc, không đổi gì.
+    // ------------------------------------------------------------
+    async function xuLyXoaSach(id, tenSach) {
+      const dongY = confirm(`Xoá sách "${tenSach}"? Hành động này không thể hoàn tác.`);
+      if (!dongY) return;
+
+      const ketQua = await xoaSach(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Xoá thất bại, vui lòng thử lại.");
+        return;
+      }
+
+      taiVaVeBangSach();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiVaVeBangSachNoiBat (MỚI)
+    // MỤC ĐÍCH: Y HỆT logic taiVaVeBangSach() ở trên, nhưng thao tác
+    // trên bảng "sach_noi_bat" qua các hàm trong sach-noi-bat.js
+    // ------------------------------------------------------------
+    async function taiVaVeBangSachNoiBat() {
+      const oThanBang = document.getElementById("than-bang-sach-noi-bat");
+
+      const ketQua = await layToanBoSachNoiBatAdmin();
+
+      if (!ketQua.thanhCong) {
+        oThanBang.innerHTML =
+          '<tr><td colspan="6" class="thong-bao-rong">Không tải được danh sách, vui lòng thử lại.</td></tr>';
+        return;
+      }
+
+      if (ketQua.mangSach.length === 0) {
+        oThanBang.innerHTML =
+          '<tr><td colspan="6" class="thong-bao-rong">Chưa có sách nổi bật nào. Bấm "Thêm sách nổi bật" để bắt đầu.</td></tr>';
+        return;
+      }
+
+      oThanBang.innerHTML = ketQua.mangSach
+        .map(function (sach) {
+          const oAnh = sach.anh_bia
+            ? `<img src="${thoatHtml(sach.anh_bia)}" alt="" style="width:40px;height:52px;object-fit:cover;border-radius:4px;" />`
+            : "—";
+
+          const nhanTrangThai = sach.da_xuat_ban
+            ? '<span class="nhan-trang-thai da-xuat-ban">Đang hiện</span>'
+            : '<span class="nhan-trang-thai chua-xuat-ban">Đang ẩn</span>';
+
+          return `
+            <tr>
+              <td>${oAnh}</td>
+              <td>${thoatHtml(sach.ten_sach)}</td>
+              <td>${thoatHtml(sach.tac_gia || "—")}</td>
+              <td>${sach.thu_tu}</td>
+              <td>${nhanTrangThai}</td>
+              <td>
+                <div class="nhom-nut-hanh-dong">
+                  <a class="nut-sua" href="sach-noi-bat-form.html?id=${encodeURIComponent(sach.id)}">Sửa</a>
+                  <button class="nut-xoa" onclick="xuLyXoaSachNoiBat('${sach.id}', '${thoatHtml(sach.ten_sach).replace(/'/g, "\\'")}')">Xoá</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyXoaSachNoiBat (MỚI)
+    // MỤC ĐÍCH: Y HỆT logic xuLyXoaSach() ở trên, nhưng gọi
+    // xoaSachNoiBat() (sach-noi-bat.js) và vẽ lại bảng "sach_noi_bat"
+    // ------------------------------------------------------------
+    async function xuLyXoaSachNoiBat(id, tenSach) {
+      const dongY = confirm(`Xoá sách nổi bật "${tenSach}"? Hành động này không thể hoàn tác.`);
+      if (!dongY) return;
+
+      const ketQua = await xoaSachNoiBat(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Xoá thất bại, vui lòng thử lại.");
+        return;
+      }
+
+      taiVaVeBangSachNoiBat();
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

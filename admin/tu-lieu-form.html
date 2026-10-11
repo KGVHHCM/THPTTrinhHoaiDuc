@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/tu-lieu-form.html
+  MỤC ĐÍCH: Form THÊM/SỬA bài viết RIÊNG cho mục "Tư liệu & Ký ức"
+  (3 loại: hoi_uc, nghien_cuu, ky_niem). Tách hoàn toàn khỏi
+  bai-viet-form.html (file đó chỉ dùng cho loại tin_tuc).
+
+  PHẦN NỘI DUNG dùng trình soạn khối (assets/js/trinh-soan-khoi.js).
+  Ảnh phụ, video, file PDF đính kèm giờ là các khối trong bài,
+  không còn là trường riêng.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thêm/Sửa tư liệu - Quản trị</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+  <header class="header-admin">
+    <h1 id="tieu-de-trang">Thêm tư liệu mới</h1>
+    <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+  </header>
+
+  <main class="noi-dung-admin">
+    <form id="form-tu-lieu" onsubmit="xuLyLuuTuLieu(event)">
+
+      <div class="nhom-truong-form">
+        <label for="input-loai">Loại tư liệu *</label>
+        <select id="input-loai" required>
+          <option value="hoi_uc">Hồi ức nhân chứng</option>
+          <option value="nghien_cuu">Bài nghiên cứu</option>
+          <option value="ky_niem">Kỷ niệm &amp; Ngày lễ</option>
+        </select>
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="input-tieu-de">Tiêu đề *</label>
+        <input type="text" id="input-tieu-de" required />
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="input-mo-ta-ngan">Mô tả ngắn</label>
+        <textarea id="input-mo-ta-ngan" rows="2"></textarea>
+        <p class="ghi-chu-truong">
+          Đoạn tóm tắt ngắn hiển thị ở danh sách tư liệu, không bắt buộc.
+        </p>
+      </div>
+
+      <!-- Ảnh đại diện: giữ riêng, dùng cho danh sách -->
+      <div class="nhom-truong-form">
+        <label for="input-anh-dai-dien">Ảnh đại diện</label>
+        <input
+          type="file"
+          id="input-anh-dai-dien"
+          accept="image/*"
+          onchange="xemTruocAnhDaiDien(event)"
+        />
+        <img id="xem-truoc-anh-dai-dien" class="xem-truoc-anh" alt="Xem trước ảnh đại diện" />
+      </div>
+
+      <div class="nhom-truong-form">
+        <label>Nội dung *</label>
+        <p class="ghi-chu-truong">
+          Thêm các khối bằng nút bên dưới (chữ, ảnh, thư viện ảnh, video,
+          file PDF...). Đổi thứ tự bằng nút ▲ ▼ hoặc giữ biểu tượng ⠿ để
+          kéo thả (kéo thả chỉ dùng được trên máy tính).
+        </p>
+        <div id="trinh-soan-khoi"></div>
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="input-nguoi-ke">Người kể / Tác giả</label>
+        <input type="text" id="input-nguoi-ke" />
+        <p class="ghi-chu-truong">
+          Tên nhân chứng (hồi ức) hoặc tác giả (bài nghiên cứu), không bắt buộc.
+        </p>
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="input-ngay-su-kien">Ngày / Mốc thời gian sự kiện</label>
+        <input type="date" id="input-ngay-su-kien" />
+      </div>
+
+      <div class="nhom-truong-form">
+        <div class="dong-checkbox">
+          <input type="checkbox" id="input-xuat-ban" />
+          <label for="input-xuat-ban" style="margin: 0">
+            Xuất bản ngay (bỏ chọn để lưu dưới dạng bản nháp)
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <button type="submit" class="nut-luu-bai-viet" id="nut-luu">
+          Lưu tư liệu
+        </button>
+        <button type="button" class="nut-xem-truoc" onclick="xemTruocBai()">
+          Xem trước
+        </button>
+        <a href="quan-ly-tu-lieu.html" class="nut-huy">Huỷ</a>
+        <span class="trang-thai-tu-luu" id="trang-thai-tu-luu"></span>
+      </div>
+
+      <div
+        class="thong-bao-ket-qua"
+        id="thong-bao-ket-qua"
+        style="display: none"
+      ></div>
+    </form>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/posts.js"></script>
+  <script src="../assets/js/trinh-soan-khoi.js"></script>
+
+  <script>
+    let idTuLieuDangSua = null;
+    let urlAnhDaiDienHienTai = null;
+    let fileAnhDaiDienMoi = null;
+
+    // Các trường nằm ngoài trình soạn khối (dùng cho tự lưu nháp)
+    function layTruongNgoai() {
+      return {
+        loai: document.getElementById("input-loai").value,
+        tieu_de: document.getElementById("input-tieu-de").value,
+        mo_ta_ngan: document.getElementById("input-mo-ta-ngan").value,
+        nguoi_ke: document.getElementById("input-nguoi-ke").value,
+        ngay_su_kien: document.getElementById("input-ngay-su-kien").value,
+        da_xuat_ban: document.getElementById("input-xuat-ban").checked,
+      };
+    }
+
+    function datTruongNgoai(truong) {
+      if (truong.loai) {
+        document.getElementById("input-loai").value = truong.loai;
+      }
+      document.getElementById("input-tieu-de").value = truong.tieu_de || "";
+      document.getElementById("input-mo-ta-ngan").value = truong.mo_ta_ngan || "";
+      document.getElementById("input-nguoi-ke").value = truong.nguoi_ke || "";
+      document.getElementById("input-ngay-su-kien").value = truong.ngay_su_kien || "";
+      document.getElementById("input-xuat-ban").checked = !!truong.da_xuat_ban;
+    }
+
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+
+      trinhSoanKhoi.khoiTao("trinh-soan-khoi");
+      document
+        .getElementById("form-tu-lieu")
+        .addEventListener("input", trinhSoanKhoi.danhDauThayDoi);
+
+      const thamSo = new URLSearchParams(window.location.search);
+      const id = thamSo.get("id");
+
+      if (id) {
+        idTuLieuDangSua = id;
+        document.getElementById("tieu-de-trang").textContent = "Sửa tư liệu";
+
+        const ketQua = await layChiTietBaiViet(id);
+
+        if (!ketQua.thanhCong) {
+          alert("Không tải được tư liệu: " + ketQua.loi);
+          return;
+        }
+
+        const bv = ketQua.duLieu;
+        document.getElementById("input-loai").value = bv.loai_bai_viet;
+        document.getElementById("input-tieu-de").value = bv.tieu_de;
+        document.getElementById("input-mo-ta-ngan").value = bv.mo_ta_ngan || "";
+        document.getElementById("input-nguoi-ke").value = bv.nguoi_ke || "";
+        document.getElementById("input-ngay-su-kien").value = bv.ngay_su_kien || "";
+        document.getElementById("input-xuat-ban").checked = bv.da_xuat_ban;
+
+        if (bv.anh_dai_dien) {
+          urlAnhDaiDienHienTai = bv.anh_dai_dien;
+          const oAnh = document.getElementById("xem-truoc-anh-dai-dien");
+          oAnh.src = bv.anh_dai_dien;
+          oAnh.style.display = "block";
+        }
+
+        // Bài cũ chưa có noi_dung_khoi sẽ tự được chuyển thành các khối
+        // (nội dung -> khối chữ, ảnh phụ -> thư viện ảnh, video, PDF)
+        trinhSoanKhoi.napTuBaiViet(bv);
+      }
+
+      trinhSoanKhoi.batTuLuuNhap(
+        "tu-lieu-" + (id || "moi"),
+        layTruongNgoai,
+        datTruongNgoai
+      );
+    }
+
+    function xemTruocAnhDaiDien(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+      fileAnhDaiDienMoi = file;
+      const duongDanTam = URL.createObjectURL(file);
+      const oAnh = document.getElementById("xem-truoc-anh-dai-dien");
+      oAnh.src = duongDanTam;
+      oAnh.style.display = "block";
+    }
+
+    function xemTruocBai() {
+      trinhSoanKhoi.xemTruoc(document.getElementById("input-tieu-de").value.trim());
+    }
+
+    async function xuLyLuuTuLieu(event) {
+      event.preventDefault();
+
+      const nutLuu = document.getElementById("nut-luu");
+      const oThongBao = document.getElementById("thong-bao-ket-qua");
+
+      nutLuu.disabled = true;
+      nutLuu.textContent = "Đang lưu...";
+      oThongBao.style.display = "none";
+
+      try {
+        let urlAnhDaiDienCuoiCung = urlAnhDaiDienHienTai;
+
+        if (fileAnhDaiDienMoi) {
+          const ketQuaUpload = await uploadAnh(fileAnhDaiDienMoi);
+          if (!ketQuaUpload.thanhCong) {
+            throw new Error("Lỗi tải ảnh đại diện: " + ketQuaUpload.loi);
+          }
+          urlAnhDaiDienCuoiCung = ketQuaUpload.url;
+        }
+
+        // Upload ảnh/PDF trong các khối, dọn khối rỗng, tạo các cột tương thích
+        const noiDung = await trinhSoanKhoi.hoanTatDeLuu(uploadAnh, uploadFileDinhKem);
+
+        const duLieuTuLieu = {
+          loai_bai_viet: document.getElementById("input-loai").value,
+          tieu_de: document.getElementById("input-tieu-de").value.trim(),
+          mo_ta_ngan: document.getElementById("input-mo-ta-ngan").value.trim(),
+          noi_dung: noiDung.noi_dung,
+          noi_dung_khoi: noiDung.khoi,
+          anh_dai_dien: urlAnhDaiDienCuoiCung,
+          danh_sach_anh: noiDung.danh_sach_anh,
+          danh_sach_video: noiDung.danh_sach_video,
+          file_dinh_kem: noiDung.file_dinh_kem,
+          nguoi_ke: document.getElementById("input-nguoi-ke").value.trim() || null,
+          ngay_su_kien: document.getElementById("input-ngay-su-kien").value || null,
+          da_xuat_ban: document.getElementById("input-xuat-ban").checked,
+        };
+
+        let ketQuaLuu;
+        if (idTuLieuDangSua) {
+          ketQuaLuu = await suaBaiViet(idTuLieuDangSua, duLieuTuLieu);
+        } else {
+          ketQuaLuu = await themBaiViet(duLieuTuLieu);
+        }
+
+        if (!ketQuaLuu.thanhCong) {
+          throw new Error(ketQuaLuu.loi);
+        }
+
+        trinhSoanKhoi.xoaNhapTuLuu();
+
+        oThongBao.textContent = "Lưu tư liệu thành công!";
+        oThongBao.className = "thong-bao-ket-qua thanh-cong";
+        oThongBao.style.display = "block";
+
+        setTimeout(function () {
+          window.location.href = "quan-ly-tu-lieu.html";
+        }, 800);
+      } catch (loi) {
+        oThongBao.textContent = "Có lỗi xảy ra: " + loi.message;
+        oThongBao.className = "thong-bao-ket-qua that-bai";
+        oThongBao.style.display = "block";
+
+        nutLuu.disabled = false;
+        nutLuu.textContent = "Lưu tư liệu";
+      }
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

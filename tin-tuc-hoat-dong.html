@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!--
+  FILE: tin-tuc-hoat-dong.html
+  MỤC ĐÍCH: Hiển thị TOÀN BỘ bài viết loại "tin_tuc" (Tin tức & Hoạt
+  động) ĐÃ XUẤT BẢN, mới nhất lên đầu, dạng lưới thẻ.
+
+  CẬP NHẬT: mỗi thẻ có nút "Xem thêm / Thu gọn" kiểu bài đăng Facebook
+  (thu gọn: ảnh + tiêu đề + đoạn mô tả ngắn; Xem thêm: bung toàn bộ
+  nội dung ngay trong thẻ). Bấm vào ảnh hoặc tiêu đề để mở trang bài
+  viết đầy đủ (bai-viet.html). Dùng veDanhSachTheXemThem() trong
+  assets/js/render-khoi-bai-viet.js thay cho veDanhSachThe().
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tin tức & Hoạt động - Không gian văn hóa Hồ Chí Minh</title>
+  <meta
+    name="description"
+    content="Tin tức, hình ảnh các hoạt động giáo dục, ngoại khóa và hội thi liên quan đến Chủ tịch Hồ Chí Minh tại trường."
+  />
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+    <!-- Favicon: logo trường hiện trên tab trình duyệt -->
+  <link rel="icon" type="image/png" href="assets/images/logotruong.png" />
+  <link rel="apple-touch-icon" href="assets/images/logotruong.png" />
+</head>
+<body>
+
+  <div id="site-header"></div>
+
+  <main id="noi-dung-chinh">
+
+    <section class="section">
+      <div class="khung-noi-dung">
+        
+        <h1 class="tieu-de-trang-giua">Tin tức &amp; Hoạt động</h1>
+        
+
+        <hr class="duong-ke-muc" />
+
+        <!-- Lưới thẻ bài viết: veDanhSachTheXemThem() sẽ chèn nội dung
+             thật vào đây sau khi tải xong dữ liệu -->
+        <div id="luoi-tin-tuc">
+          <p class="thong-bao-rong-cong-khai">Đang tải tin tức...</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="site-footer"></div>
+
+  <!-- Thứ tự nhúng JS bắt buộc: thư viện Supabase JS -> supabase-client.js
+       -> posts.js (layDanhSachBaiViet) -> render-card.js (thoatHtml,
+       nhãn loại, layNgayHienThi) -> trinh-soan-khoi.js (vẽ các khối nội
+       dung) -> render-khoi-bai-viet.js (veDanhSachTheXemThem) -> nav.js -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/posts.js"></script>
+  <script src="assets/js/render-card.js"></script>
+  <script src="assets/js/trinh-soan-khoi.js"></script>
+  <script src="assets/js/render-khoi-bai-viet.js"></script>
+  <script src="assets/js/nav.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // HÀM: khoiTaoTrang
+    // MỤC ĐÍCH: Lấy danh sách bài "tin_tuc" ĐÃ XUẤT BẢN rồi vẽ ra
+    // lưới thẻ có nút Xem thêm / Thu gọn.
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      const ketQua = await layDanhSachBaiViet("tin_tuc", true);
+
+      if (!ketQua.thanhCong) {
+        const oKhung = document.getElementById("luoi-tin-tuc");
+        oKhung.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Không tải được tin tức, vui lòng thử lại sau.</p>';
+        return;
+      }
+
+      veDanhSachTheXemThem(
+        ketQua.duLieu,
+        "luoi-tin-tuc",
+        "Chưa có tin tức nào được đăng."
+      );
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

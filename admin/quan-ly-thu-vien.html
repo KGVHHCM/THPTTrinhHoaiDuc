@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/quan-ly-thu-vien.html
+  MỤC ĐÍCH: Trang quản lý thư viện ảnh & video do admin tự đăng
+  (bảng thu_vien_media + thu_vien_album, xem docs/thu-vien.sql).
+
+  CHỨC NĂNG:
+    1. Thống kê: số ảnh, video, album, bản nháp, dung lượng đã dùng
+    2. Tải nhiều ảnh lên Supabase Storage (kéo-thả hoặc chọn file),
+       tự nén ảnh, có tiến trình từng ảnh
+    3. Thêm ảnh/video bằng LINK (YouTube, Facebook, Google Drive, .mp4)
+       - dán nhiều link, mỗi dòng 1 link
+    4. Album: thêm / sửa / xoá / ẩn / đổi thứ tự
+    5. Sửa tiêu đề, mô tả, album, ngày chụp, nguồn/tác giả, tag
+    6. Tìm kiếm + lọc theo album, loại, trạng thái, tag, nổi bật
+    7. Kéo-thả để sắp xếp thứ tự
+    8. Chọn nhiều + thao tác hàng loạt (đăng/nháp, nổi bật, chuyển
+       album, xoá)
+    9. Đặt ảnh làm ảnh bìa album
+   10. Xoá an toàn (có xác nhận, xoá luôn file trên Storage)
+
+  Cấu trúc theo đúng pattern của admin/quan-ly-cuoc-doi.html:
+  baoVeTrangAdmin() -> tải dữ liệu -> vẽ giao diện.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý thư viện - Quản trị</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+  <style>
+    /* CSS riêng cho trang này, mọi class đều có tiền tố "tv-" để KHÔNG
+       đụng vào class của admin.css. Màu chủ đạo #a6192e giống các trang admin khác */
+
+    /* ---- Thống kê ---- */
+    .tv-thong-ke {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .tv-o-thong-ke {
+      flex: 1 1 130px;
+      background: #fff;
+      border: 1px solid #e3e3e3;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .tv-o-thong-ke b {
+      display: block;
+      font-size: 22px;
+      color: #a6192e;
+    }
+    .tv-o-thong-ke span {
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* ---- Nút ---- */
+    .tv-nhom-nut { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tv-nut {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid #d0d0d0;
+      background: #fff;
+      color: #333;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .tv-nut:hover { border-color: #a6192e; color: #a6192e; }
+    .tv-nut:disabled { opacity: 0.45; cursor: not-allowed; }
+    .tv-nut-chinh { background: #a6192e; border-color: #a6192e; color: #fff; }
+    .tv-nut-chinh:hover { background: #8a1425; color: #fff; }
+    .tv-nut-nguy-hiem { color: #b3261e; border-color: #e0b4b0; }
+    .tv-nut-nguy-hiem:hover { background: #b3261e; color: #fff; border-color: #b3261e; }
+    .tv-nut-nho { padding: 4px 8px; font-size: 12px; }
+
+    /* ---- Khu tải lên ---- */
+    .tv-tai-len {
+      background: #fff;
+      border: 1px solid #e3e3e3;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 18px;
+    }
+    .tv-tuy-chon-tai-len {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .tv-vung-tha {
+      border: 2px dashed #c9c9c9;
+      border-radius: 8px;
+      padding: 26px 14px;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .tv-vung-tha:hover,
+    .tv-vung-tha:focus-visible,
+    .tv-vung-tha.dang-keo-vao {
+      border-color: #a6192e;
+      background: #fdf4f5;
+      color: #a6192e;
+      outline: none;
+    }
+    .tv-hang-doi { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .tv-dong-hang-doi {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: #f6f6f6;
+    }
+    .tv-dong-hang-doi.xong { background: #eef7ee; color: #1e6b2b; }
+    .tv-dong-hang-doi.loi { background: #fdeeee; color: #b3261e; }
+    .tv-dong-hang-doi .tv-ten-file {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ---- Bộ lọc ---- */
+    .tv-bo-loc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .tv-bo-loc input[type="search"] { flex: 1 1 200px; }
+    .tv-bo-loc input[type="search"],
+    .tv-bo-loc select {
+      padding: 8px 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .tv-bo-loc label { font-size: 13px; display: flex; gap: 5px; align-items: center; }
+
+    /* ---- Thanh thao tác hàng loạt ---- */
+    .tv-thanh-chon {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      background: #fff7f8;
+      border: 1px solid #a6192e;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .tv-thanh-chon[hidden] { display: none; }
+    .tv-thanh-chon select { padding: 5px 8px; border: 1px solid #d0d0d0; border-radius: 6px; }
+
+    /* ---- Lưới thẻ ---- */
+    .tv-luoi {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 14px;
+    }
+    .tv-the {
+      position: relative;
+      background: #fff;
+      border: 1px solid #e3e3e3;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .tv-the.dang-chon { border-color: #a6192e; box-shadow: 0 0 0 2px rgba(166, 25, 46, 0.25); }
+    .tv-the.dang-keo { opacity: 0.4; }
+    .tv-the.dich-tha { border-color: #a6192e; border-style: dashed; }
+    .tv-the.la-nhap .tv-anh-the { filter: grayscale(0.7); opacity: 0.75; }
+
+    .tv-anh-the {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      background: #ececec;
+      display: block;
+      width: 100%;
+      border: 0;
+      padding: 0;
+      cursor: zoom-in;
+    }
+    .tv-anh-the img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .tv-khong-thumb {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+      font-size: 12px;
+    }
+    .tv-huy-hieu-video {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      background: rgba(0, 0, 0, 0.72);
+      color: #fff;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .tv-o-chon {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .tv-co-the {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-end;
+    }
+    .tv-co-the span {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #444;
+    }
+    .tv-co-the .nhap { background: #fff3cd; color: #7a5b00; }
+    .tv-co-the .noi-bat { background: #a6192e; color: #fff; }
+    .tv-co-the .bia { background: #1d5fa8; color: #fff; }
+
+    .tv-thong-tin { padding: 8px 10px; flex: 1; cursor: grab; }
+    .tv-tieu-de-the {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 0 0 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tv-phu-the { font-size: 12px; color: #777; margin: 0; }
+    .tv-the-tag { font-size: 11px; color: #a6192e; margin: 3px 0 0; }
+    .tv-hanh-dong-the {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 0 10px 10px;
+    }
+
+    /* ---- Modal ---- */
+    .tv-nen-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .tv-nen-modal[hidden] { display: none; }
+    .tv-modal {
+      background: #fff;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 18px 20px;
+    }
+    .tv-modal-rong { max-width: 760px; }
+    .tv-modal h2 { margin: 0 0 12px; font-size: 18px; }
+    .tv-truong { margin-bottom: 10px; }
+    .tv-truong label { display: block; font-size: 13px; margin-bottom: 4px; color: #444; }
+    .tv-truong input[type="text"],
+    .tv-truong input[type="url"],
+    .tv-truong input[type="date"],
+    .tv-truong select,
+    .tv-truong textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .tv-truong textarea { min-height: 90px; resize: vertical; }
+    .tv-truong .tv-ghi-chu { font-size: 12px; color: #888; margin: 3px 0 0; }
+    .tv-hang-checkbox { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin-bottom: 10px; }
+    .tv-hang-checkbox label { display: flex; gap: 5px; align-items: center; }
+    .tv-chan-modal { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .tv-xem-truoc { display: flex; justify-content: center; background: #111; border-radius: 8px; overflow: hidden; }
+    .tv-xem-truoc img,
+    .tv-xem-truoc video { max-width: 100%; max-height: 70vh; display: block; }
+    .tv-xem-truoc iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; }
+
+    /* ---- Dòng album trong modal album ---- */
+    .tv-dong-album {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .tv-dong-album input[type="text"] {
+      flex: 1 1 140px;
+      padding: 6px 8px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .tv-dong-album label { font-size: 12px; display: flex; gap: 4px; align-items: center; }
+
+    /* ---- Thông báo nhỏ ---- */
+    .tv-thong-bao {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 200;
+      max-width: 340px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #2b2b2b;
+      color: #fff;
+      font-size: 13px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+    .tv-thong-bao.loi { background: #b3261e; }
+    .tv-thong-bao.thanh-cong { background: #1e6b2b; }
+
+    @media (max-width: 600px) {
+      .tv-luoi { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header-admin">
+    <a class="lien-ket-tieu-de-admin" href="dashboard.html">
+      <h1>Quản lý thư viện ảnh &amp; video</h1>
+    </a>
+    <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+  </header>
+
+  <main class="noi-dung-admin">
+
+    <!-- 1. THỐNG KÊ -->
+    <div class="tv-thong-ke" id="tv-thong-ke"></div>
+
+    <!-- 2. THANH CÔNG CỤ -->
+    <div class="thanh-cong-cu">
+      <p style="font-size: 13px; color: #666">
+        Ảnh/video ở đây được đăng thêm vào trang Thư viện công khai. Kéo thả thẻ để đổi thứ tự.
+      </p>
+      <div class="tv-nhom-nut">
+        <button type="button" class="tv-nut" id="nut-mo-album">Quản lý album</button>
+        <button type="button" class="tv-nut tv-nut-chinh" id="nut-mo-them-link">+ Thêm bằng link</button>
+      </div>
+    </div>
+
+    <!-- 3. TẢI ẢNH LÊN -->
+    <section class="tv-tai-len" aria-label="Tải ảnh lên">
+      <div class="tv-tuy-chon-tai-len">
+        <label>Tải vào album:
+          <select id="tai-len-album"></select>
+        </label>
+        <label>
+          <input type="checkbox" id="tai-len-dang-ngay" checked />
+          Đăng ngay (bỏ chọn = lưu bản nháp)
+        </label>
+      </div>
+      <div class="tv-vung-tha" id="vung-tha" tabindex="0" role="button"
+           aria-label="Kéo thả ảnh vào đây hoặc bấm để chọn ảnh">
+        Kéo thả nhiều ảnh vào đây, hoặc bấm để chọn ảnh từ máy
+        <input type="file" id="o-chon-file" accept="image/*" multiple hidden />
+      </div>
+      <div class="tv-hang-doi" id="hang-doi-tai-len"></div>
+    </section>
+
+    <!-- 4. BỘ LỌC -->
+    <div class="tv-bo-loc">
+      <input type="search" id="loc-tu-khoa" placeholder="Tìm theo tiêu đề, mô tả, nguồn, tag..." />
+      <select id="loc-album" aria-label="Lọc theo album"></select>
+      <select id="loc-loai" aria-label="Lọc theo loại">
+        <option value="">Ảnh &amp; video</option>
+        <option value="anh">Chỉ ảnh</option>
+        <option value="video">Chỉ video</option>
+      </select>
+      <select id="loc-trang-thai" aria-label="Lọc theo trạng thái">
+        <option value="">Mọi trạng thái</option>
+        <option value="da-xuat-ban">Đã xuất bản</option>
+        <option value="nhap">Bản nháp</option>
+      </select>
+      <select id="loc-the" aria-label="Lọc theo tag"></select>
+      <label><input type="checkbox" id="loc-noi-bat" /> Chỉ nổi bật</label>
+    </div>
+
+    <!-- 5. THAO TÁC HÀNG LOẠT (chỉ hiện khi đã chọn thẻ) -->
+    <div class="tv-thanh-chon" id="thanh-chon" hidden>
+      <b id="so-da-chon">0 đã chọn</b>
+      <button type="button" class="tv-nut tv-nut-nho" data-bulk="chon-tat-ca">Chọn tất cả đang hiện</button>
+      <button type="button" class="tv-nut tv-nut-nho" data-bulk="bo-chon">Bỏ chọn</button>
+      <button type="button" class="tv-nut tv-nut-nho" data-bulk="dang">Đăng</button>
+      <button type="button" class="tv-nut tv-nut-nho" data-bulk="nhap">Chuyển thành nháp</button>
+      <button type="button" class="tv-nut tv-nut-nho" data-bulk="noi-bat">Gắn nổi bật</button>
+      <button type="button" class="tv-nut tv-nut-nho" data-bulk="bo-noi-bat">Bỏ nổi bật</button>
+      <select id="bulk-album" aria-label="Chọn album để chuyển tới"></select>
+      <button type="button" class="tv-nut tv-nut-nho" data-bulk="chuyen-album">Chuyển album</button>
+      <button type="button" class="tv-nut tv-nut-nho tv-nut-nguy-hiem" data-bulk="xoa">Xoá đã chọn</button>
+    </div>
+
+    <!-- 6. LƯỚI ẢNH / VIDEO -->
+    <div class="tv-luoi" id="luoi-media"></div>
+
+    <p class="thong-bao-rong" id="thong-bao-rong" style="display: none">
+      Chưa có ảnh hay video nào. Kéo ảnh vào khung phía trên hoặc bấm "+ Thêm bằng link" để bắt đầu.
+    </p>
+  </main>
+
+
+  <!-- ============ MODAL: THÊM BẰNG LINK ============ -->
+  <div class="tv-nen-modal" id="modal-link" hidden>
+    <div class="tv-modal" role="dialog" aria-modal="true" aria-labelledby="tieu-de-modal-link">
+      <h2 id="tieu-de-modal-link">Thêm ảnh / video bằng link</h2>
+
+      <div class="tv-truong">
+        <label for="link-loai">Loại</label>
+        <select id="link-loai">
+          <option value="anh">Ảnh (link ảnh trực tiếp)</option>
+          <option value="video">Video (YouTube, Facebook, Google Drive, .mp4)</option>
+        </select>
+      </div>
+
+      <div class="tv-truong">
+        <label for="link-danh-sach">Link (mỗi dòng 1 link)</label>
+        <textarea id="link-danh-sach" placeholder="https://..."></textarea>
+        <p class="tv-ghi-chu" id="link-ghi-chu"></p>
+      </div>
+
+      <div class="tv-truong">
+        <label for="link-album">Album</label>
+        <select id="link-album"></select>
+      </div>
+
+      <div class="tv-hang-checkbox">
+        <label><input type="checkbox" id="link-dang-ngay" checked /> Đăng ngay</label>
+      </div>
+
+      <div class="tv-chan-modal">
+        <button type="button" class="tv-nut" data-dong-modal="modal-link">Huỷ</button>
+        <button type="button" class="tv-nut tv-nut-chinh" id="nut-luu-link">Thêm vào thư viện</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: SỬA 1 MỤC ============ -->
+  <div class="tv-nen-modal" id="modal-sua" hidden>
+    <div class="tv-modal" role="dialog" aria-modal="true" aria-labelledby="tieu-de-modal-sua">
+      <h2 id="tieu-de-modal-sua">Sửa thông tin</h2>
+
+      <div class="tv-truong">
+        <label for="sua-tieu-de">Tiêu đề</label>
+        <input type="text" id="sua-tieu-de" maxlength="200" />
+      </div>
+      <div class="tv-truong">
+        <label for="sua-mo-ta">Mô tả</label>
+        <textarea id="sua-mo-ta"></textarea>
+      </div>
+      <div class="tv-truong">
+        <label for="sua-album">Album</label>
+        <select id="sua-album"></select>
+      </div>
+      <div class="tv-truong">
+        <label for="sua-ngay-chup">Ngày chụp / ngày quay</label>
+        <input type="date" id="sua-ngay-chup" />
+      </div>
+      <div class="tv-truong">
+        <label for="sua-nguon">Nguồn / Tác giả</label>
+        <input type="text" id="sua-nguon" maxlength="200" />
+      </div>
+      <div class="tv-truong">
+        <label for="sua-the">Tag (cách nhau bằng dấu phẩy)</label>
+        <input type="text" id="sua-the" placeholder="vd: di tích, lễ kỷ niệm, 2024" />
+      </div>
+      <div class="tv-truong" id="truong-sua-link">
+        <label for="sua-link" id="nhan-sua-link">Link</label>
+        <input type="url" id="sua-link" />
+        <p class="tv-ghi-chu">Ảnh tải lên từ máy không đổi link được. Muốn thay ảnh thì xoá và tải ảnh khác.</p>
+      </div>
+
+      <div class="tv-hang-checkbox">
+        <label><input type="checkbox" id="sua-dang-ngay" /> Đã xuất bản</label>
+        <label><input type="checkbox" id="sua-noi-bat" /> Nổi bật</label>
+      </div>
+
+      <div class="tv-chan-modal">
+        <button type="button" class="tv-nut" data-dong-modal="modal-sua">Huỷ</button>
+        <button type="button" class="tv-nut tv-nut-chinh" id="nut-luu-sua">Lưu thay đổi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: XEM TRƯỚC ============ -->
+  <div class="tv-nen-modal" id="modal-xem" hidden>
+    <div class="tv-modal tv-modal-rong" role="dialog" aria-modal="true" aria-label="Xem trước">
+      <div class="tv-xem-truoc" id="khung-xem-truoc"></div>
+      <div class="tv-chan-modal">
+        <button type="button" class="tv-nut" data-dong-modal="modal-xem">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: QUẢN LÝ ALBUM ============ -->
+  <div class="tv-nen-modal" id="modal-album" hidden>
+    <div class="tv-modal tv-modal-rong" role="dialog" aria-modal="true" aria-labelledby="tieu-de-modal-album">
+      <h2 id="tieu-de-modal-album">Quản lý album</h2>
+
+      <div class="tv-dong-album" style="border-bottom: 2px solid #ddd; padding-bottom: 12px">
+        <input type="text" id="album-moi-ten" placeholder="Tên album mới (vd: Hoạt động 2024)" maxlength="120" />
+        <input type="text" id="album-moi-mo-ta" placeholder="Mô tả ngắn (không bắt buộc)" maxlength="300" />
+        <button type="button" class="tv-nut tv-nut-chinh tv-nut-nho" id="nut-them-album">+ Thêm album</button>
+      </div>
+
+      <div id="danh-sach-album"></div>
+
+      <div class="tv-chan-modal">
+        <button type="button" class="tv-nut" data-dong-modal="modal-album">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/thu-vien-admin.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // TRẠNG THÁI TOÀN CỤC
+    // dsMedia: toàn bộ ảnh/video (đã sắp theo thu_tu từ database)
+    // dsAlbum: toàn bộ album
+    // daChon : tập hợp id các thẻ đang được tick chọn
+    // ------------------------------------------------------------
+    let dsMedia = [];
+    let dsAlbum = [];
+    const daChon = new Set();
+    let idDangSua = null;   // id mục đang mở trong modal sửa
+    let idDangKeo = null;   // id thẻ đang được kéo-thả
+
+    const NHAN_LOAI_VIDEO = { youtube: "YouTube", facebook: "Facebook", drive: "Drive", file: "Video" };
+
+    function layOTrang(id) { return document.getElementById(id); }
+
+    // ------------------------------------------------------------
+    // HÀM: hienThongBao — thông báo nhỏ góc phải dưới, tự tắt sau 3.5s
+    // kieu: "" | "loi" | "thanh-cong"
+    // ------------------------------------------------------------
+    function hienThongBao(noiDung, kieu) {
+      const o = document.createElement("div");
+      o.className = "tv-thong-bao" + (kieu ? " " + kieu : "");
+      o.textContent = noiDung;
+      document.body.appendChild(o);
+      setTimeout(function () { o.remove(); }, 3500);
+    }
+
+    function moModal(id) { layOTrang(id).hidden = false; }
+    function dongModal(id) {
+      layOTrang(id).hidden = true;
+      if (id === "modal-xem") layOTrang("khung-xem-truoc").innerHTML = ""; // dừng video đang phát
+    }
+
+    // ------------------------------------------------------------
+    // KHỞI TẠO TRANG
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+      ganTatCaSuKien();
+      await taiLaiTatCa();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiLaiTatCa — tải lại album + media từ database, cập nhật
+    // thống kê, các ô chọn album/tag và vẽ lại lưới
+    // ------------------------------------------------------------
+    async function taiLaiTatCa() {
+      const [kqAlbum, kqMedia] = await Promise.all([
+        layDanhSachAlbumThuVien(),
+        layDanhSachMediaThuVien()
+      ]);
+
+      if (!kqAlbum.thanhCong || !kqMedia.thanhCong) {
+        const loi = (kqAlbum.loi || kqMedia.loi || "");
+        hienThongBao(
+          "Không tải được dữ liệu: " + loi +
+          " (đã chạy docs/thu-vien.sql trong Supabase chưa?)", "loi"
+        );
+        return;
+      }
+
+      dsAlbum = kqAlbum.duLieu;
+      dsMedia = kqMedia.duLieu;
+
+      veThongKe();
+      napLuaChonAlbum();
+      napLuaChonThe();
+      veLuoi();
+      if (!layOTrang("modal-album").hidden) veDanhSachAlbum();
+    }
+
+    // ------------------------------------------------------------
+    // THỐNG KÊ
+    // ------------------------------------------------------------
+    function veThongKe() {
+      let soAnh = 0, soVideo = 0, soNhap = 0, dungLuong = 0;
+      dsMedia.forEach(function (m) {
+        if (m.loai === "anh") soAnh++; else soVideo++;
+        if (!m.da_xuat_ban) soNhap++;
+        dungLuong += Number(m.dung_luong) || 0;
+      });
+
+      const cacO = [
+        [soAnh, "Ảnh"],
+        [soVideo, "Video"],
+        [dsAlbum.length, "Album"],
+        [soNhap, "Bản nháp"],
+        [dinhDangDungLuongThuVien(dungLuong), "Dung lượng ảnh tải lên"]
+      ];
+
+      layOTrang("tv-thong-ke").innerHTML = cacO.map(function (o) {
+        return '<div class="tv-o-thong-ke"><b>' + thoatHtmlThuVien(o[0]) + "</b><span>" +
+               thoatHtmlThuVien(o[1]) + "</span></div>";
+      }).join("");
+    }
+
+    // ------------------------------------------------------------
+    // CÁC Ô CHỌN (select) ALBUM / TAG
+    // Giữ nguyên giá trị đang chọn khi nạp lại danh sách
+    // ------------------------------------------------------------
+    function taoOptionAlbum(giaTriRong, chuRong) {
+      let html = '<option value="">' + thoatHtmlThuVien(chuRong) + "</option>";
+      dsAlbum.forEach(function (a) {
+        html += '<option value="' + thoatHtmlThuVien(a.id) + '">' +
+                thoatHtmlThuVien(a.ten) + (a.da_xuat_ban ? "" : " (ẩn)") + "</option>";
+      });
+      return html;
+    }
+
+    function napLuaChonAlbum() {
+      // Ô lọc có thêm lựa chọn đặc biệt "Chưa có album"
+      const oLoc = layOTrang("loc-album");
+      const giaTriLoc = oLoc.value;
+      oLoc.innerHTML =
+        '<option value="">Mọi album</option>' +
+        '<option value="__khong__">Chưa có album</option>' +
+        dsAlbum.map(function (a) {
+          return '<option value="' + thoatHtmlThuVien(a.id) + '">' + thoatHtmlThuVien(a.ten) + "</option>";
+        }).join("");
+      oLoc.value = giaTriLoc;
+      if (oLoc.value !== giaTriLoc) oLoc.value = "";
+
+      ["tai-len-album", "link-album", "sua-album", "bulk-album"].forEach(function (id) {
+        const o = layOTrang(id);
+        const cu = o.value;
+        o.innerHTML = taoOptionAlbum("", "— Chưa có album —");
+        o.value = cu;
+        if (o.value !== cu) o.value = "";
+      });
+    }
+
+    function napLuaChonThe() {
+      const o = layOTrang("loc-the");
+      const cu = o.value;
+      const tatCa = new Set();
+      dsMedia.forEach(function (m) { (m.the || []).forEach(function (t) { tatCa.add(t); }); });
+      const mang = Array.from(tatCa).sort(function (a, b) { return a.localeCompare(b, "vi"); });
+
+      o.innerHTML = '<option value="">Mọi tag</option>' + mang.map(function (t) {
+        return '<option value="' + thoatHtmlThuVien(t) + '">' + thoatHtmlThuVien(t) + "</option>";
+      }).join("");
+      o.value = cu;
+      if (o.value !== cu) o.value = "";
+    }
+
+    // ------------------------------------------------------------
+    // LỌC + VẼ LƯỚI
+    // ------------------------------------------------------------
+    function layDanhSachDaLoc() {
+      const tuKhoa = layOTrang("loc-tu-khoa").value.trim().toLowerCase();
+      const album = layOTrang("loc-album").value;
+      const loai = layOTrang("loc-loai").value;
+      const trangThai = layOTrang("loc-trang-thai").value;
+      const the = layOTrang("loc-the").value;
+      const chiNoiBat = layOTrang("loc-noi-bat").checked;
+
+      return dsMedia.filter(function (m) {
+        if (album === "__khong__" && m.album_id) return false;
+        if (album && album !== "__khong__" && m.album_id !== album) return false;
+        if (loai && m.loai !== loai) return false;
+        if (trangThai === "da-xuat-ban" && !m.da_xuat_ban) return false;
+        if (trangThai === "nhap" && m.da_xuat_ban) return false;
+        if (the && (m.the || []).indexOf(the) === -1) return false;
+        if (chiNoiBat && !m.noi_bat) return false;
+        if (tuKhoa) {
+          const kho = [m.tieu_de, m.mo_ta, m.nguon_tac_gia, (m.the || []).join(" ")]
+            .join(" ").toLowerCase();
+          if (kho.indexOf(tuKhoa) === -1) return false;
+        }
+        return true;
+      });
+    }
+
+    function tenAlbumTheoId(id) {
+      const a = dsAlbum.find(function (x) { return x.id === id; });
+      return a ? a.ten : "";
+    }
+
+    function veLuoi() {
+      const oLuoi = layOTrang("luoi-media");
+      const dsLoc = layDanhSachDaLoc();
+
+      // Bỏ chọn những thẻ không còn hiển thị (tránh xoá nhầm thẻ đang bị ẩn bởi bộ lọc)
+      const idHienThi = new Set(dsLoc.map(function (m) { return m.id; }));
+      Array.from(daChon).forEach(function (id) { if (!idHienThi.has(id)) daChon.delete(id); });
+
+      layOTrang("thong-bao-rong").style.display = dsMedia.length === 0 ? "block" : "none";
+
+      if (dsMedia.length > 0 && dsLoc.length === 0) {
+        oLuoi.innerHTML = '<p class="thong-bao-rong" style="grid-column: 1 / -1">Không có mục nào khớp bộ lọc.</p>';
+        capNhatThanhChon();
+        return;
+      }
+
+      oLuoi.innerHTML = dsLoc.map(taoHtmlThe).join("");
+      capNhatThanhChon();
+    }
+
+    function taoHtmlThe(m) {
+      const laVideo = m.loai === "video";
+      const anhThe = m.url_thumb || (laVideo ? "" : m.url);
+      const tenAlbum = tenAlbumTheoId(m.album_id);
+      const album = m.album_id ? dsAlbum.find(function (a) { return a.id === m.album_id; }) : null;
+      const laBia = album && album.anh_bia_url && (album.anh_bia_url === m.url_thumb || album.anh_bia_url === m.url);
+
+      const phanAnh = anhThe
+        ? '<img src="' + thoatHtmlThuVien(anhThe) + '" alt="' + thoatHtmlThuVien(m.tieu_de || "") + '" loading="lazy" />'
+        : '<div class="tv-khong-thumb">Không có ảnh xem trước</div>';
+
+      const huyHieuVideo = laVideo
+        ? '<span class="tv-huy-hieu-video">▶ ' + thoatHtmlThuVien(NHAN_LOAI_VIDEO[m.loai_video] || "Video") + "</span>"
+        : "";
+
+      let coThe = "";
+      if (!m.da_xuat_ban) coThe += '<span class="nhap">Nháp</span>';
+      if (m.noi_bat) coThe += '<span class="noi-bat">★ Nổi bật</span>';
+      if (laBia) coThe += '<span class="bia">Bìa album</span>';
+
+      const chuoiTag = (m.the || []).map(function (t) { return "#" + t; }).join(" ");
+      const tieuDe = m.tieu_de || (laVideo ? "(Video chưa đặt tiêu đề)" : "(Ảnh chưa đặt tiêu đề)");
+
+      const nutBia = (!laVideo && m.album_id)
+        ? '<button type="button" class="tv-nut tv-nut-nho" data-hanh-dong="bia">Đặt làm bìa</button>' : "";
+
+      return (
+        '<div class="tv-the' + (daChon.has(m.id) ? " dang-chon" : "") + (m.da_xuat_ban ? "" : " la-nhap") +
+        '" draggable="true" data-id="' + thoatHtmlThuVien(m.id) + '">' +
+          '<input type="checkbox" class="tv-o-chon" aria-label="Chọn mục này"' + (daChon.has(m.id) ? " checked" : "") + " />" +
+          '<button type="button" class="tv-anh-the" data-hanh-dong="xem" aria-label="Xem trước">' +
+            phanAnh + huyHieuVideo +
+            '<div class="tv-co-the">' + coThe + "</div>" +
+          "</button>" +
+          '<div class="tv-thong-tin">' +
+            '<p class="tv-tieu-de-the" title="' + thoatHtmlThuVien(tieuDe) + '">' + thoatHtmlThuVien(tieuDe) + "</p>" +
+            '<p class="tv-phu-the">' + thoatHtmlThuVien(tenAlbum || "Chưa có album") + "</p>" +
+            (chuoiTag ? '<p class="tv-the-tag">' + thoatHtmlThuVien(chuoiTag) + "</p>" : "") +
+          "</div>" +
+          '<div class="tv-hanh-dong-the">' +
+            '<button type="button" class="tv-nut tv-nut-nho" data-hanh-dong="sua">Sửa</button>' +
+            '<button type="button" class="tv-nut tv-nut-nho" data-hanh-dong="dang">' + (m.da_xuat_ban ? "Ẩn" : "Đăng") + "</button>" +
+            '<button type="button" class="tv-nut tv-nut-nho" data-hanh-dong="noi-bat">' + (m.noi_bat ? "Bỏ ★" : "★") + "</button>" +
+            nutBia +
+            '<button type="button" class="tv-nut tv-nut-nho tv-nut-nguy-hiem" data-hanh-dong="xoa">Xoá</button>' +
+          "</div>" +
+        "</div>"
+      );
+    }
+
+    function timMedia(id) {
+      return dsMedia.find(function (m) { return m.id === id; });
+    }
+
+    // ------------------------------------------------------------
+    // CHỌN NHIỀU + THANH THAO TÁC HÀNG LOẠT
+    // ------------------------------------------------------------
+    function capNhatThanhChon() {
+      const thanh = layOTrang("thanh-chon");
+      thanh.hidden = daChon.size === 0;
+      layOTrang("so-da-chon").textContent = daChon.size + " đã chọn";
+    }
+
+    async function xuLyHangLoat(hanhDong) {
+      if (hanhDong === "chon-tat-ca") {
+        layDanhSachDaLoc().forEach(function (m) { daChon.add(m.id); });
+        veLuoi();
+        return;
+      }
+      if (hanhDong === "bo-chon") {
+        daChon.clear();
+        veLuoi();
+        return;
+      }
+
+      const mangId = Array.from(daChon);
+      if (mangId.length === 0) return;
+
+      let ketQua;
+      let thongBaoXong = "Đã cập nhật " + mangId.length + " mục";
+
+      if (hanhDong === "dang") ketQua = await suaNhieuMediaThuVien(mangId, { da_xuat_ban: true });
+      else if (hanhDong === "nhap") ketQua = await suaNhieuMediaThuVien(mangId, { da_xuat_ban: false });
+      else if (hanhDong === "noi-bat") ketQua = await suaNhieuMediaThuVien(mangId, { noi_bat: true });
+      else if (hanhDong === "bo-noi-bat") ketQua = await suaNhieuMediaThuVien(mangId, { noi_bat: false });
+      else if (hanhDong === "chuyen-album") {
+        const albumId = layOTrang("bulk-album").value || null;
+        ketQua = await suaNhieuMediaThuVien(mangId, { album_id: albumId });
+        thongBaoXong = "Đã chuyển " + mangId.length + " mục sang " + (albumId ? '"' + tenAlbumTheoId(albumId) + '"' : "Chưa có album");
+      } else if (hanhDong === "xoa") {
+        const xacNhan = confirm(
+          "Bạn có chắc muốn xoá " + mangId.length + " mục đã chọn?\n" +
+          "Ảnh tải lên từ máy sẽ bị xoá khỏi Storage. Hành động này không thể hoàn tác."
+        );
+        if (!xacNhan) return;
+        const dsXoa = mangId.map(timMedia).filter(Boolean);
+        ketQua = await xoaNhieuMediaThuVien(dsXoa);
+        thongBaoXong = "Đã xoá " + mangId.length + " mục";
+        if (ketQua.canhBao) hienThongBao(ketQua.canhBao, "loi");
+      } else {
+        return;
+      }
+
+      if (!ketQua.thanhCong) {
+        hienThongBao("Thao tác thất bại: " + ketQua.loi, "loi");
+        return;
+      }
+
+      daChon.clear();
+      hienThongBao(thongBaoXong, "thanh-cong");
+      await taiLaiTatCa();
+    }
+
+    // ------------------------------------------------------------
+    // HÀNH ĐỘNG TRÊN TỪNG THẺ
+    // ------------------------------------------------------------
+    async function xuLyHanhDongThe(hanhDong, id) {
+      const m = timMedia(id);
+      if (!m) return;
+
+      if (hanhDong === "xem") { moXemTruoc(m); return; }
+      if (hanhDong === "sua") { moModalSua(m); return; }
+
+      let ketQua;
+      if (hanhDong === "dang") {
+        ketQua = await suaMediaThuVien(id, { da_xuat_ban: !m.da_xuat_ban });
+      } else if (hanhDong === "noi-bat") {
+        ketQua = await suaMediaThuVien(id, { noi_bat: !m.noi_bat });
+      } else if (hanhDong === "bia") {
+        ketQua = await suaAlbumThuVien(m.album_id, { anh_bia_url: m.url_thumb || m.url });
+        if (ketQua.thanhCong) hienThongBao("Đã đặt làm ảnh bìa album", "thanh-cong");
+      } else if (hanhDong === "xoa") {
+        const ten = m.tieu_de || "mục này";
+        if (!confirm('Bạn có chắc muốn xoá "' + ten + '"?\nHành động này không thể hoàn tác.')) return;
+        ketQua = await xoaNhieuMediaThuVien([m]);
+        if (ketQua.canhBao) hienThongBao(ketQua.canhBao, "loi");
+        daChon.delete(id);
+      } else {
+        return;
+      }
+
+      if (!ketQua.thanhCong) {
+        hienThongBao("Thao tác thất bại: " + ketQua.loi, "loi");
+        return;
+      }
+      await taiLaiTatCa();
+    }
+
+    // ------------------------------------------------------------
+    // XEM TRƯỚC (ảnh phóng to / phát video)
+    // ------------------------------------------------------------
+    function moXemTruoc(m) {
+      const khung = layOTrang("khung-xem-truoc");
+
+      if (m.loai === "anh") {
+        khung.innerHTML = '<img src="' + thoatHtmlThuVien(m.url) + '" alt="' + thoatHtmlThuVien(m.tieu_de || "") + '" />';
+      } else if (m.loai_video === "file") {
+        khung.innerHTML = '<video src="' + thoatHtmlThuVien(m.url_nhung || m.url) + '" controls autoplay></video>';
+      } else {
+        khung.innerHTML =
+          '<iframe src="' + thoatHtmlThuVien(m.url_nhung || m.url) + '" allowfullscreen ' +
+          'allow="autoplay; encrypted-media; picture-in-picture" loading="lazy"></iframe>';
+      }
+      moModal("modal-xem");
+    }
+
+    // ------------------------------------------------------------
+    // MODAL SỬA 1 MỤC
+    // ------------------------------------------------------------
+    function moModalSua(m) {
+      idDangSua = m.id;
+      layOTrang("sua-tieu-de").value = m.tieu_de || "";
+      layOTrang("sua-mo-ta").value = m.mo_ta || "";
+      layOTrang("sua-album").value = m.album_id || "";
+      layOTrang("sua-ngay-chup").value = m.ngay_chup || "";
+      layOTrang("sua-nguon").value = m.nguon_tac_gia || "";
+      layOTrang("sua-the").value = (m.the || []).join(", ");
+      layOTrang("sua-dang-ngay").checked = !!m.da_xuat_ban;
+      layOTrang("sua-noi-bat").checked = !!m.noi_bat;
+
+      // Chỉ cho đổi link khi mục KHÔNG phải ảnh tải lên Storage
+      const choDoiLink = !m.duong_dan_storage;
+      layOTrang("truong-sua-link").style.display = choDoiLink ? "" : "none";
+      layOTrang("nhan-sua-link").textContent = m.loai === "video" ? "Link video" : "Link ảnh";
+      layOTrang("sua-link").value = choDoiLink ? m.url : "";
+
+      moModal("modal-sua");
+    }
+
+    async function luuModalSua() {
+      const m = timMedia(idDangSua);
+      if (!m) return;
+
+      const duLieu = {
+        tieu_de: layOTrang("sua-tieu-de").value.trim() || null,
+        mo_ta: layOTrang("sua-mo-ta").value.trim() || null,
+        album_id: layOTrang("sua-album").value || null,
+        ngay_chup: layOTrang("sua-ngay-chup").value || null,
+        nguon_tac_gia: layOTrang("sua-nguon").value.trim() || null,
+        the: tachTheTuChuoiThuVien(layOTrang("sua-the").value),
+        da_xuat_ban: layOTrang("sua-dang-ngay").checked,
+        noi_bat: layOTrang("sua-noi-bat").checked
+      };
+
+      // Mục dạng link: cho phép đổi link
+      if (!m.duong_dan_storage) {
+        const linkMoi = layOTrang("sua-link").value.trim();
+        if (!laLinkHopLeThuVien(linkMoi)) {
+          hienThongBao("Link không hợp lệ", "loi");
+          return;
+        }
+        if (linkMoi !== m.url) {
+          if (m.loai === "anh") {
+            duLieu.url = linkMoi;
+            duLieu.url_thumb = linkMoi;
+          } else {
+            const kq = phanTichLinkVideoThuVien(linkMoi);
+            if (!kq.thanhCong) { hienThongBao(kq.loi, "loi"); return; }
+            duLieu.url = linkMoi;
+            duLieu.loai_video = kq.duLieu.loaiVideo;
+            duLieu.url_nhung = kq.duLieu.urlNhung;
+            duLieu.url_thumb = kq.duLieu.urlThumb;
+          }
+        }
+      }
+
+      const nut = layOTrang("nut-luu-sua");
+      nut.disabled = true;
+      const ketQua = await suaMediaThuVien(m.id, duLieu);
+      nut.disabled = false;
+
+      if (!ketQua.thanhCong) {
+        hienThongBao("Lưu thất bại: " + ketQua.loi, "loi");
+        return;
+      }
+      dongModal("modal-sua");
+      hienThongBao("Đã lưu thay đổi", "thanh-cong");
+      await taiLaiTatCa();
+    }
+
+    // ------------------------------------------------------------
+    // TẢI NHIỀU ẢNH LÊN STORAGE (kéo-thả hoặc chọn file)
+    // Chạy song song tối đa 2 ảnh một lúc để không làm nghẽn mạng
+    // ------------------------------------------------------------
+    function themDongHangDoi(tenFile) {
+      const o = document.createElement("div");
+      o.className = "tv-dong-hang-doi";
+      o.innerHTML = '<span class="tv-ten-file">' + thoatHtmlThuVien(tenFile) + '</span><span class="tv-trang-thai">Đang chờ...</span>';
+      layOTrang("hang-doi-tai-len").appendChild(o);
+      return o;
+    }
+
+    function datTrangThaiDong(oDong, chu, lop) {
+      oDong.querySelector(".tv-trang-thai").textContent = chu;
+      oDong.classList.remove("xong", "loi");
+      if (lop) oDong.classList.add(lop);
+    }
+
+    async function taiMotAnh(file, oDong, albumId, dangNgay) {
+      datTrangThaiDong(oDong, "Đang nén và tải lên...", "");
+      const kqTai = await taiAnhLenStorageThuVien(file);
+
+      if (!kqTai.thanhCong) {
+        datTrangThaiDong(oDong, "Lỗi: " + kqTai.loi, "loi");
+        return false;
+      }
+
+      const d = kqTai.duLieu;
+      const tieuDe = file.name.replace(/\.[^.]+$/, "");
+
+      const kqLuu = await themMediaThuVien({
+        album_id: albumId,
+        loai: "anh",
+        tieu_de: tieuDe,
+        url: d.url,
+        url_thumb: d.urlThumb,
+        duong_dan_storage: d.duongDan,
+        duong_dan_thumb_storage: d.duongDanThumb,
+        dung_luong: d.dungLuong,
+        da_xuat_ban: dangNgay
+      });
+
+      if (!kqLuu.thanhCong) {
+        // Lưu database lỗi -> xoá file vừa tải lên để không bị "rác" trên Storage
+        await xoaFileStorageThuVien([d.duongDan, d.duongDanThumb]);
+        datTrangThaiDong(oDong, "Lỗi lưu dữ liệu: " + kqLuu.loi, "loi");
+        return false;
+      }
+
+      datTrangThaiDong(oDong, "Xong (" + dinhDangDungLuongThuVien(d.dungLuong) + ")", "xong");
+      return true;
+    }
+
+    async function xuLyChonFile(danhSachFile) {
+      const files = Array.from(danhSachFile).filter(function (f) { return f.type.indexOf("image/") === 0; });
+      if (files.length === 0) {
+        hienThongBao("Chỉ nhận file ảnh (JPG, PNG, WebP, GIF...)", "loi");
+        return;
+      }
+
+      const albumId = layOTrang("tai-len-album").value || null;
+      const dangNgay = layOTrang("tai-len-dang-ngay").checked;
+
+      layOTrang("hang-doi-tai-len").innerHTML = "";
+      const cacDong = files.map(function (f) { return themDongHangDoi(f.name); });
+
+      let chiSo = 0, soThanhCong = 0, soLoi = 0;
+      async function congNhan() {
+        while (chiSo < files.length) {
+          const k = chiSo++;
+          const ok = await taiMotAnh(files[k], cacDong[k], albumId, dangNgay);
+          if (ok) soThanhCong++; else soLoi++;
+        }
+      }
+      await Promise.all([congNhan(), congNhan()]);
+
+      hienThongBao(
+        "Tải xong " + soThanhCong + " ảnh" + (soLoi ? ", " + soLoi + " ảnh lỗi" : ""),
+        soLoi ? "loi" : "thanh-cong"
+      );
+      layOTrang("o-chon-file").value = "";
+      await taiLaiTatCa();
+    }
+
+    // ------------------------------------------------------------
+    // THÊM BẰNG LINK (ảnh hoặc video, nhiều link cùng lúc)
+    // ------------------------------------------------------------
+    function capNhatGhiChuLink() {
+      const laVideo = layOTrang("link-loai").value === "video";
+      layOTrang("link-ghi-chu").textContent = laVideo
+        ? "Hỗ trợ: YouTube (watch, youtu.be, shorts), Facebook, Google Drive (chia sẻ công khai), link file .mp4/.webm."
+        : "Dán link trực tiếp tới file ảnh (đuôi .jpg, .png, .webp... hoặc link ảnh công khai).";
+    }
+
+    function moModalLink() {
+      layOTrang("link-danh-sach").value = "";
+      layOTrang("link-album").value = "";
+      layOTrang("link-dang-ngay").checked = true;
+      capNhatGhiChuLink();
+      moModal("modal-link");
+    }
+
+    async function luuModalLink() {
+      const loai = layOTrang("link-loai").value;
+      const albumId = layOTrang("link-album").value || null;
+      const dangNgay = layOTrang("link-dang-ngay").checked;
+
+      const cacLink = layOTrang("link-danh-sach").value
+        .split("\n")
+        .map(function (l) { return l.trim(); })
+        .filter(function (l) { return l.length > 0; });
+
+      if (cacLink.length === 0) {
+        hienThongBao("Hãy dán ít nhất 1 link", "loi");
+        return;
+      }
+
+      const nut = layOTrang("nut-luu-link");
+      nut.disabled = true;
+      nut.textContent = "Đang thêm...";
+
+      let soThanhCong = 0;
+      const cacLoi = [];
+
+      for (const link of cacLink) {
+        let hang;
+
+        if (loai === "anh") {
+          if (!laLinkHopLeThuVien(link)) { cacLoi.push(link + " — link không hợp lệ"); continue; }
+          hang = { loai: "anh", url: link, url_thumb: link };
+        } else {
+          const kq = phanTichLinkVideoThuVien(link);
+          if (!kq.thanhCong) { cacLoi.push(link + " — " + kq.loi); continue; }
+          const tieuDe = kq.duLieu.loaiVideo === "youtube" ? await layTieuDeYoutubeThuVien(link) : "";
+          hang = {
+            loai: "video",
+            url: link,
+            url_thumb: kq.duLieu.urlThumb,
+            loai_video: kq.duLieu.loaiVideo,
+            url_nhung: kq.duLieu.urlNhung,
+            tieu_de: tieuDe || null
+          };
+        }
+
+        hang.album_id = albumId;
+        hang.da_xuat_ban = dangNgay;
+
+        const kqLuu = await themMediaThuVien(hang);
+        if (kqLuu.thanhCong) soThanhCong++;
+        else cacLoi.push(link + " — " + kqLuu.loi);
+      }
+
+      nut.disabled = false;
+      nut.textContent = "Thêm vào thư viện";
+
+      if (cacLoi.length > 0) {
+        // Giữ lại trong ô chỉ những link bị lỗi để người dùng sửa và thử lại
+        layOTrang("link-danh-sach").value = cacLoi.map(function (c) { return c.split(" — ")[0]; }).join("\n");
+        hienThongBao("Thêm được " + soThanhCong + ", lỗi " + cacLoi.length + ": " + cacLoi[0], "loi");
+      } else {
+        dongModal("modal-link");
+        hienThongBao("Đã thêm " + soThanhCong + " mục", "thanh-cong");
+      }
+      if (soThanhCong > 0) await taiLaiTatCa();
+    }
+
+    // ------------------------------------------------------------
+    // QUẢN LÝ ALBUM
+    // ------------------------------------------------------------
+    function veDanhSachAlbum() {
+      const o = layOTrang("danh-sach-album");
+
+      if (dsAlbum.length === 0) {
+        o.innerHTML = '<p class="thong-bao-rong">Chưa có album nào. Thêm album mới ở ô phía trên.</p>';
+        return;
+      }
+
+      o.innerHTML = dsAlbum.map(function (a, chiSo) {
+        const soMuc = dsMedia.filter(function (m) { return m.album_id === a.id; }).length;
+        return (
+          '<div class="tv-dong-album" data-id="' + thoatHtmlThuVien(a.id) + '">' +
+            '<button type="button" class="tv-nut tv-nut-nho" data-album-hd="len"' + (chiSo === 0 ? " disabled" : "") + ">↑</button>" +
+            '<button type="button" class="tv-nut tv-nut-nho" data-album-hd="xuong"' + (chiSo === dsAlbum.length - 1 ? " disabled" : "") + ">↓</button>" +
+            '<input type="text" class="album-o-ten" value="' + thoatHtmlThuVien(a.ten) + '" maxlength="120" aria-label="Tên album" />' +
+            '<input type="text" class="album-o-mo-ta" value="' + thoatHtmlThuVien(a.mo_ta || "") + '" maxlength="300" placeholder="Mô tả" aria-label="Mô tả album" />' +
+            '<label><input type="checkbox" class="album-o-dang"' + (a.da_xuat_ban ? " checked" : "") + " /> Hiện</label>" +
+            '<span style="font-size:12px;color:#777">' + soMuc + " mục</span>" +
+            '<button type="button" class="tv-nut tv-nut-nho tv-nut-chinh" data-album-hd="luu">Lưu</button>' +
+            '<button type="button" class="tv-nut tv-nut-nho tv-nut-nguy-hiem" data-album-hd="xoa">Xoá</button>' +
+          "</div>"
+        );
+      }).join("");
+    }
+
+    async function themAlbumMoi() {
+      const ten = layOTrang("album-moi-ten").value.trim();
+      if (!ten) { hienThongBao("Hãy nhập tên album", "loi"); return; }
+
+      // Album mới xếp cuối danh sách
+      const thuTuMoi = dsAlbum.length ? Math.max.apply(null, dsAlbum.map(function (a) { return a.thu_tu; })) + 1 : 0;
+
+      const kq = await themAlbumThuVien({
+        ten: ten,
+        mo_ta: layOTrang("album-moi-mo-ta").value.trim() || null,
+        thu_tu: thuTuMoi
+      });
+      if (!kq.thanhCong) { hienThongBao("Thêm album thất bại: " + kq.loi, "loi"); return; }
+
+      layOTrang("album-moi-ten").value = "";
+      layOTrang("album-moi-mo-ta").value = "";
+      hienThongBao("Đã thêm album", "thanh-cong");
+      await taiLaiTatCa();
+    }
+
+    async function xuLyHanhDongAlbum(hanhDong, oDong) {
+      const id = oDong.dataset.id;
+      const chiSo = dsAlbum.findIndex(function (a) { return a.id === id; });
+      if (chiSo < 0) return;
+      const album = dsAlbum[chiSo];
+
+      if (hanhDong === "luu") {
+        const ten = oDong.querySelector(".album-o-ten").value.trim();
+        if (!ten) { hienThongBao("Tên album không được để trống", "loi"); return; }
+        const kq = await suaAlbumThuVien(id, {
+          ten: ten,
+          mo_ta: oDong.querySelector(".album-o-mo-ta").value.trim() || null,
+          da_xuat_ban: oDong.querySelector(".album-o-dang").checked
+        });
+        if (!kq.thanhCong) { hienThongBao("Lưu thất bại: " + kq.loi, "loi"); return; }
+        hienThongBao("Đã lưu album", "thanh-cong");
+      } else if (hanhDong === "xoa") {
+        const soMuc = dsMedia.filter(function (m) { return m.album_id === id; }).length;
+        const xacNhan = confirm(
+          'Xoá album "' + album.ten + '"?\n' +
+          (soMuc ? soMuc + " ảnh/video trong album sẽ KHÔNG bị xoá, chỉ chuyển về \"Chưa có album\"." : "Album đang trống.")
+        );
+        if (!xacNhan) return;
+        const kq = await xoaAlbumThuVien(id);
+        if (!kq.thanhCong) { hienThongBao("Xoá thất bại: " + kq.loi, "loi"); return; }
+        hienThongBao("Đã xoá album", "thanh-cong");
+      } else if (hanhDong === "len" || hanhDong === "xuong") {
+        const chiSoKia = hanhDong === "len" ? chiSo - 1 : chiSo + 1;
+        const albumKia = dsAlbum[chiSoKia];
+        if (!albumKia) return;
+
+        // Hoán đổi thu_tu giữa 2 album. Nếu 2 album đang trùng thu_tu thì
+        // chuẩn hoá lại theo vị trí trong danh sách để việc hoán đổi có tác dụng
+        let thuTuA = album.thu_tu, thuTuB = albumKia.thu_tu;
+        if (thuTuA === thuTuB) { thuTuA = chiSo; thuTuB = chiSoKia; }
+        const kq1 = await suaAlbumThuVien(album.id, { thu_tu: thuTuB });
+        const kq2 = await suaAlbumThuVien(albumKia.id, { thu_tu: thuTuA });
+        if (!kq1.thanhCong || !kq2.thanhCong) { hienThongBao("Đổi thứ tự thất bại", "loi"); return; }
+      } else {
+        return;
+      }
+
+      await taiLaiTatCa();
+    }
+
+    // ------------------------------------------------------------
+    // KÉO-THẢ ĐỔI THỨ TỰ
+    // Chỉ các thẻ ĐANG HIỆN (sau khi lọc) được hoán vị với nhau, và
+    // chiếm đúng những vị trí cũ của chúng trong danh sách tổng
+    // ------------------------------------------------------------
+    async function doiViTri(idKeo, idDich) {
+      if (idKeo === idDich) return;
+
+      const idsLoc = layDanhSachDaLoc().map(function (m) { return m.id; });
+      const tu = idsLoc.indexOf(idKeo);
+      const den = idsLoc.indexOf(idDich);
+      if (tu < 0 || den < 0) return;
+
+      const idsMoi = idsLoc.slice();
+      const phanTu = idsMoi.splice(tu, 1)[0];
+      idsMoi.splice(den, 0, phanTu);
+
+      const tapLoc = new Set(idsLoc);
+      const bangMedia = new Map(dsMedia.map(function (m) { return [m.id, m]; }));
+      const viTriChiem = [];
+      dsMedia.forEach(function (m, i) { if (tapLoc.has(m.id)) viTriChiem.push(i); });
+
+      const mangMoi = dsMedia.slice();
+      viTriChiem.forEach(function (viTri, k) { mangMoi[viTri] = bangMedia.get(idsMoi[k]); });
+
+      // Gán lại thu_tu = vị trí; chỉ gửi lên database những mục thật sự đổi
+      const canCapNhat = [];
+      mangMoi.forEach(function (m, i) {
+        if (m.thu_tu !== i) {
+          canCapNhat.push({ id: m.id, thu_tu: i });
+          m.thu_tu = i;
+        }
+      });
+
+      dsMedia = mangMoi;
+      veLuoi();
+
+      const ketQua = await datThuTuMediaThuVien(canCapNhat);
+      if (!ketQua.thanhCong) {
+        hienThongBao("Lưu thứ tự thất bại: " + ketQua.loi, "loi");
+        await taiLaiTatCa();
+      }
+    }
+
+    // ------------------------------------------------------------
+    // GẮN TẤT CẢ SỰ KIỆN (gọi 1 lần khi khởi tạo trang)
+    // Dùng "uỷ quyền sự kiện" (event delegation) cho lưới và album vì
+    // các thẻ bị vẽ lại liên tục
+    // ------------------------------------------------------------
+    function ganTatCaSuKien() {
+      // --- Bộ lọc ---
+      ["loc-album", "loc-loai", "loc-trang-thai", "loc-the", "loc-noi-bat"].forEach(function (id) {
+        layOTrang(id).addEventListener("change", veLuoi);
+      });
+      layOTrang("loc-tu-khoa").addEventListener("input", veLuoi);
+
+      // --- Nút mở modal ---
+      layOTrang("nut-mo-them-link").addEventListener("click", moModalLink);
+      layOTrang("nut-mo-album").addEventListener("click", function () {
+        veDanhSachAlbum();
+        moModal("modal-album");
+      });
+      layOTrang("link-loai").addEventListener("change", capNhatGhiChuLink);
+      layOTrang("nut-luu-link").addEventListener("click", luuModalLink);
+      layOTrang("nut-luu-sua").addEventListener("click", luuModalSua);
+      layOTrang("nut-them-album").addEventListener("click", themAlbumMoi);
+
+      // --- Nút đóng modal (mọi nút có data-dong-modal) + bấm nền tối + phím Esc ---
+      document.querySelectorAll("[data-dong-modal]").forEach(function (nut) {
+        nut.addEventListener("click", function () { dongModal(nut.dataset.dongModal); });
+      });
+      document.querySelectorAll(".tv-nen-modal").forEach(function (nen) {
+        nen.addEventListener("click", function (e) { if (e.target === nen) dongModal(nen.id); });
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        document.querySelectorAll(".tv-nen-modal").forEach(function (nen) {
+          if (!nen.hidden) dongModal(nen.id);
+        });
+      });
+
+      // --- Khu tải ảnh lên ---
+      const vungTha = layOTrang("vung-tha");
+      const oChonFile = layOTrang("o-chon-file");
+      vungTha.addEventListener("click", function () { oChonFile.click(); });
+      vungTha.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); oChonFile.click(); }
+      });
+      oChonFile.addEventListener("change", function () { if (oChonFile.files.length) xuLyChonFile(oChonFile.files); });
+      ["dragenter", "dragover"].forEach(function (ev) {
+        vungTha.addEventListener(ev, function (e) { e.preventDefault(); vungTha.classList.add("dang-keo-vao"); });
+      });
+      ["dragleave", "drop"].forEach(function (ev) {
+        vungTha.addEventListener(ev, function (e) { e.preventDefault(); vungTha.classList.remove("dang-keo-vao"); });
+      });
+      vungTha.addEventListener("drop", function (e) {
+        if (e.dataTransfer && e.dataTransfer.files.length) xuLyChonFile(e.dataTransfer.files);
+      });
+
+      // --- Thanh thao tác hàng loạt ---
+      layOTrang("thanh-chon").addEventListener("click", function (e) {
+        const nut = e.target.closest("[data-bulk]");
+        if (nut) xuLyHangLoat(nut.dataset.bulk);
+      });
+
+      // --- Lưới: bấm nút trên thẻ ---
+      const oLuoi = layOTrang("luoi-media");
+      oLuoi.addEventListener("click", function (e) {
+        const nut = e.target.closest("[data-hanh-dong]");
+        const the = e.target.closest(".tv-the");
+        if (nut && the) xuLyHanhDongThe(nut.dataset.hanhDong, the.dataset.id);
+      });
+
+      // --- Lưới: tick chọn ---
+      oLuoi.addEventListener("change", function (e) {
+        if (!e.target.classList.contains("tv-o-chon")) return;
+        const the = e.target.closest(".tv-the");
+        if (e.target.checked) daChon.add(the.dataset.id); else daChon.delete(the.dataset.id);
+        the.classList.toggle("dang-chon", e.target.checked);
+        capNhatThanhChon();
+      });
+
+      // --- Lưới: kéo-thả đổi thứ tự ---
+      oLuoi.addEventListener("dragstart", function (e) {
+        const the = e.target.closest(".tv-the");
+        if (!the) return;
+        idDangKeo = the.dataset.id;
+        the.classList.add("dang-keo");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", idDangKeo); // Firefox cần dòng này mới cho kéo
+      });
+      oLuoi.addEventListener("dragend", function () {
+        idDangKeo = null;
+        oLuoi.querySelectorAll(".dang-keo, .dich-tha").forEach(function (t) { t.classList.remove("dang-keo", "dich-tha"); });
+      });
+      oLuoi.addEventListener("dragover", function (e) {
+        if (!idDangKeo) return;
+        const the = e.target.closest(".tv-the");
+        if (!the) return;
+        e.preventDefault();
+        oLuoi.querySelectorAll(".dich-tha").forEach(function (t) { t.classList.remove("dich-tha"); });
+        if (the.dataset.id !== idDangKeo) the.classList.add("dich-tha");
+      });
+      oLuoi.addEventListener("drop", function (e) {
+        if (!idDangKeo) return;
+        const the = e.target.closest(".tv-the");
+        if (!the) return;
+        e.preventDefault();
+        doiViTri(idDangKeo, the.dataset.id);
+      });
+
+      // --- Modal album: nút trên từng dòng ---
+      layOTrang("danh-sach-album").addEventListener("click", function (e) {
+        const nut = e.target.closest("[data-album-hd]");
+        const dong = e.target.closest(".tv-dong-album");
+        if (nut && dong) xuLyHanhDongAlbum(nut.dataset.albumHd, dong);
+      });
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

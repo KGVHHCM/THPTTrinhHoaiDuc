@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<!--
+  FILE: bai-viet.html
+  CẬP NHẬT: nội dung bài viết hiển thị theo các KHỐI (chữ, tiêu đề,
+  ảnh nhiều ảnh, trích dẫn, video, PDF) đúng thứ tự admin đã sắp.
+  Bài cũ (chưa có khối) tự được chuyển thành khối nên vẫn hiển thị.
+  Bấm vào bất kỳ ảnh nào trong nội dung để mở lightbox phóng to, có nút
+  chuyển trước/sau giữa các ảnh của bài.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đang tải bài viết... - Không gian văn hóa Hồ Chí Minh</title>
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/bai-viet-video.css" />
+</head>
+<body>
+
+  <div id="site-header"></div>
+
+  <main id="noi-dung-chinh">
+    <section class="section">
+      <div class="khung-noi-dung">
+        <div class="khung-bai-viet" id="khung-bai-viet-chi-tiet">
+          <p class="thong-bao-rong-cong-khai">Đang tải bài viết...</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <!-- Modal lightbox xem ảnh phóng to, dùng chung cho mọi ảnh trong
+       nội dung bài. Mặc định ẩn, JS hiện ra khi bấm vào 1 ảnh -->
+  <div
+    class="lightbox-anh"
+    id="lightbox-anh"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Xem ảnh phóng to"
+  >
+    <button
+      type="button"
+      class="lightbox-nut-dong"
+      onclick="dongLightbox()"
+      aria-label="Đóng"
+    >×</button>
+    <button
+      type="button"
+      class="lightbox-nut-dieu-huong lightbox-nut-truoc"
+      onclick="chuyenAnhLightbox(-1)"
+      aria-label="Ảnh trước"
+    >‹</button>
+    <img id="lightbox-anh-hien-tai" src="" alt="" />
+    <button
+      type="button"
+      class="lightbox-nut-dieu-huong lightbox-nut-sau"
+      onclick="chuyenAnhLightbox(1)"
+      aria-label="Ảnh sau"
+    >›</button>
+    <span class="lightbox-dem-anh" id="lightbox-dem-anh"></span>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/posts.js"></script>
+  <script src="assets/js/render-card.js"></script>
+  <script src="assets/js/trinh-soan-khoi.js"></script>
+  <script src="assets/js/render-khoi-bai-viet.js"></script>
+  <script src="assets/js/nav.js"></script>
+
+  <script>
+    const TRANG_DANH_SACH_THEO_LOAI = {
+      tin_tuc: "tin-tuc-hoat-dong.html",
+      hoi_uc: "tu-lieu-ky-uc.html",
+      nghien_cuu: "tu-lieu-ky-uc.html",
+      ky_niem: "tu-lieu-ky-uc.html",
+    };
+
+    // mangAnhLightbox: mảng URL của TẤT CẢ ảnh trong nội dung bài viết
+    let mangAnhLightbox = [];
+    // chiSoAnhLightbox: vị trí ảnh đang hiển thị trong lightbox
+    let chiSoAnhLightbox = 0;
+
+    async function khoiTaoTrang() {
+      const oKhung = document.getElementById("khung-bai-viet-chi-tiet");
+
+      // Bấm vào bất kỳ ảnh nào trong nội dung bài -> mở lightbox.
+      // Gắn 1 lần cho cả khung (event delegation), vì nội dung ảnh
+      // được vẽ động sau khi tải dữ liệu.
+      oKhung.addEventListener("click", function (suKien) {
+        const oAnh = suKien.target.closest(".bv-anh img");
+        if (!oAnh) {
+          return;
+        }
+        const tatCaAnh = Array.from(oKhung.querySelectorAll(".bv-anh img"));
+        mangAnhLightbox = tatCaAnh.map(function (a) {
+          return a.currentSrc || a.src;
+        });
+        moLightbox(tatCaAnh.indexOf(oAnh));
+      });
+
+      const thamSoUrl = new URLSearchParams(window.location.search);
+      const id = thamSoUrl.get("id");
+
+      if (!id) {
+        hienThongBaoKhongTimThay(
+          oKhung,
+          "Đường dẫn không hợp lệ: thiếu id bài viết."
+        );
+        return;
+      }
+
+      const ketQua = await layChiTietBaiViet(id);
+
+      if (!ketQua.thanhCong || !ketQua.duLieu) {
+        hienThongBaoKhongTimThay(
+          oKhung,
+          "Không tìm thấy bài viết này. Có thể bài viết đã bị xoá hoặc đường dẫn không còn đúng."
+        );
+        return;
+      }
+
+      if (!ketQua.duLieu.da_xuat_ban) {
+        hienThongBaoKhongTimThay(
+          oKhung,
+          "Bài viết này hiện chưa được công khai."
+        );
+        return;
+      }
+
+      veBaiVietChiTiet(oKhung, ketQua.duLieu);
+    }
+
+    function hienThongBaoKhongTimThay(oKhung, chuThongBao) {
+      oKhung.innerHTML = `
+        <p class="thong-bao-rong-cong-khai">${chuThongBao}</p>
+        <p style="text-align: center;">
+          <a href="tin-tuc-hoat-dong.html" class="nut nut-phu">← Quay lại trang tin tức</a>
+        </p>
+      `;
+    }
+
+    function veBaiVietChiTiet(oKhung, bv) {
+      document.title = bv.tieu_de + " - Không gian văn hóa Hồ Chí Minh";
+
+      const trangQuayLai =
+        TRANG_DANH_SACH_THEO_LOAI[bv.loai_bai_viet] || "tin-tuc-hoat-dong.html";
+
+      const nhanLoai =
+        NHAN_LOAI_BAI_VIET_CONG_KHAI[bv.loai_bai_viet] || "Bài viết";
+      const ngayHienThi = layNgayHienThi(bv);
+
+      const htmlNguoiKe = bv.nguoi_ke
+        ? `<span><strong>Người kể:</strong> ${thoatHtml(bv.nguoi_ke)}</span>`
+        : "";
+
+      const htmlAnhDaiDien = bv.anh_dai_dien
+        ? `<img class="bai-viet-anh-daidien" src="${thoatHtml(
+            bv.anh_dai_dien
+          )}" alt="" />`
+        : "";
+
+      // Nội dung: vẽ lần lượt các khối theo đúng thứ tự admin đã sắp
+      const htmlNoiDung = trinhSoanKhoi.taoHtmlNoiDung(layMangKhoiBaiViet(bv));
+
+      oKhung.innerHTML = `
+        <a href="${trangQuayLai}" class="bai-viet-quaylai">
+          <span aria-hidden="true">←</span> Quay lại danh sách
+        </a>
+
+        <p class="nhan-muc">${nhanLoai}</p>
+        <h1 class="bai-viet-tieude">${thoatHtml(bv.tieu_de)}</h1>
+
+        <div class="bai-viet-meta">
+          <span>${ngayHienThi}</span>
+          ${htmlNguoiKe}
+        </div>
+
+        ${htmlAnhDaiDien}
+
+        <div class="bai-viet-noidung-khoi">${htmlNoiDung}</div>
+      `;
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: moLightbox / dongLightbox / chuyenAnhLightbox / capNhatAnhLightbox
+    // MỤC ĐÍCH: Điều khiển modal xem ảnh phóng to
+    // ------------------------------------------------------------
+    function moLightbox(chiSo) {
+      if (mangAnhLightbox.length === 0 || chiSo < 0) {
+        return;
+      }
+      chiSoAnhLightbox = chiSo;
+      capNhatAnhLightbox();
+      document.getElementById("lightbox-anh").classList.add("dang-mo");
+    }
+
+    function dongLightbox() {
+      document.getElementById("lightbox-anh").classList.remove("dang-mo");
+    }
+
+    function chuyenAnhLightbox(buoc) {
+      const tongSo = mangAnhLightbox.length;
+      chiSoAnhLightbox = (chiSoAnhLightbox + buoc + tongSo) % tongSo;
+      capNhatAnhLightbox();
+    }
+
+    function capNhatAnhLightbox() {
+      document.getElementById("lightbox-anh-hien-tai").src =
+        mangAnhLightbox[chiSoAnhLightbox];
+      document.getElementById("lightbox-dem-anh").textContent =
+        chiSoAnhLightbox + 1 + " / " + mangAnhLightbox.length;
+    }
+
+    document.addEventListener("keydown", function (suKien) {
+      const oLightbox = document.getElementById("lightbox-anh");
+      if (!oLightbox || !oLightbox.classList.contains("dang-mo")) {
+        return;
+      }
+      if (suKien.key === "Escape") dongLightbox();
+      if (suKien.key === "ArrowLeft") chuyenAnhLightbox(-1);
+      if (suKien.key === "ArrowRight") chuyenAnhLightbox(1);
+    });
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

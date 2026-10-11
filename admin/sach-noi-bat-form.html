@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/sach-noi-bat-form.html
+  MỤC ĐÍCH: Form thêm mới / sửa 1 bản ghi "sách nổi bật" (bảng
+  "sach_noi_bat"). Cùng cơ chế với sach-form.html (đọc "?id=" trên
+  URL để biết đang SỬA hay THÊM MỚI), nhưng gọi các hàm trong
+  assets/js/sach-noi-bat.js thay vì sach.js.
+
+  LƯU Ý CHO BẠN: mình CHƯA có file sach-form.html gốc trong tay nên
+  form này dùng lại các class chung đã thấy ở admin.css (nut-them-moi,
+  bang-bai-viet, thong-bao-rong, nhan-trang-thai...) và tự đặt thêm
+  vài class mới cho phần form (form-sach-noibat, truong-form...).
+  Nếu admin.css của bạn có sẵn bộ class riêng cho form (input, nhãn,
+  nút lưu...) khác với tên dưới đây, gửi cho mình sach-form.html gốc
+  để mình chỉnh lại đúng khớp 100% với giao diện hiện có.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sách nổi bật - Không gian văn hóa Hồ Chí Minh</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+  <style>
+    /* CSS tối thiểu cho riêng form này, đặt inline vì chưa rõ admin.css
+       đã có sẵn class tương ứng hay chưa — gỡ bỏ khối này nếu admin.css
+       đã có bộ class form dùng chung, thay bằng class đó cho đồng bộ */
+    .form-sach-noibat {
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .truong-form {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .truong-form label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+    }
+    .truong-form input[type="text"],
+    .truong-form input[type="url"],
+    .truong-form input[type="number"] {
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .truong-form-checkbox {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .xem-truoc-anh-bia {
+      width: 90px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background-color: #f3f3f3;
+      margin-top: 6px;
+    }
+    .cum-nut-form {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .thong-bao-loi-form {
+      color: #b00020;
+      font-size: 13px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header-admin">
+    <h1 id="tieu-de-trang">Thêm sách nổi bật</h1>
+
+    <div class="cum-nut-header">
+      <a class="nut-quay-ve-web" href="quan-ly-sach.html">← Về quản lý sách</a>
+      <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="noi-dung-admin">
+    <form class="form-sach-noibat" id="form-sach-noibat">
+      <div class="truong-form">
+        <label for="ten_sach">Tên sách </label>
+        <input type="text" id="ten_sach" name="ten_sach"/>
+      </div>
+
+      <div class="truong-form">
+        <label for="tac_gia">Tác giả</label>
+        <input type="text" id="tac_gia" name="tac_gia" />
+      </div>
+
+      <div class="truong-form">
+        <label for="anh_bia">URL ảnh bìa</label>
+        <input type="url" id="anh_bia" name="anh_bia" placeholder="https://..." />
+        <img class="xem-truoc-anh-bia" id="xem-truoc-anh-bia" alt="Xem trước ảnh bìa" style="display: none;" />
+      </div>
+
+      <div class="truong-form">
+        <label for="link_doc">Đường dẫn đọc/tải sách (không bắt buộc)</label>
+        <input type="url" id="link_doc" name="link_doc" placeholder="https://..." />
+      </div>
+
+      <div class="truong-form">
+        <label for="thu_tu">Thứ tự hiển thị</label>
+        <input type="number" id="thu_tu" name="thu_tu" value="0" />
+      </div>
+
+      <div class="truong-form truong-form-checkbox">
+        <input type="checkbox" id="da_xuat_ban" name="da_xuat_ban" checked />
+        <label for="da_xuat_ban">Hiển thị công khai (xuất bản)</label>
+      </div>
+
+      <p class="thong-bao-loi-form" id="thong-bao-loi-form"></p>
+
+      <div class="cum-nut-form">
+        <button type="submit" class="nut-them-moi" id="nut-luu">Lưu</button>
+        <a class="nut-quay-ve-web" href="quan-ly-sach.html">Huỷ</a>
+      </div>
+    </form>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/sach-noi-bat.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // Lấy id trên URL (?id=...) để biết đang SỬA hay THÊM MỚI —
+    // đúng quy ước dùng "?id=" đã thấy ở quan-ly-sach.html
+    // ------------------------------------------------------------
+    const thamSoUrl = new URLSearchParams(window.location.search);
+    const idDangSua = thamSoUrl.get("id");
+
+    // ------------------------------------------------------------
+    // HÀM: khoiTaoTrang
+    // MỤC ĐÍCH: Bảo vệ trang, và nếu đang SỬA (có "id" trên URL) thì
+    // tải sẵn dữ liệu cũ đổ vào form
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+
+      if (idDangSua) {
+        document.getElementById("tieu-de-trang").textContent = "Sửa sách nổi bật";
+
+        const ketQua = await layMotSachNoiBat(idDangSua);
+
+        if (!ketQua.thanhCong || !ketQua.sach) {
+          hienThiLoi("Không tải được dữ liệu sách này, vui lòng quay lại và thử lại.");
+          return;
+        }
+
+        doDuLieuLenForm(ketQua.sach);
+      }
+
+      ganSuKienXemTruocAnhBia();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: doDuLieuLenForm
+    // MỤC ĐÍCH: Gán giá trị từng ô input theo bản ghi sách đã tải,
+    // dùng khi ở chế độ SỬA
+    // ------------------------------------------------------------
+    function doDuLieuLenForm(sach) {
+      document.getElementById("ten_sach").value = sach.ten_sach || "";
+      document.getElementById("tac_gia").value = sach.tac_gia || "";
+      document.getElementById("anh_bia").value = sach.anh_bia || "";
+      document.getElementById("link_doc").value = sach.link_doc || "";
+      document.getElementById("thu_tu").value = sach.thu_tu ?? 0;
+      document.getElementById("da_xuat_ban").checked = !!sach.da_xuat_ban;
+
+      capNhatXemTruocAnhBia(sach.anh_bia || "");
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: ganSuKienXemTruocAnhBia
+    // MỤC ĐÍCH: Mỗi khi admin gõ/dán URL ảnh bìa, cập nhật ảnh xem
+    // trước ngay bên dưới ô nhập, giúp kiểm tra link ảnh có đúng
+    // trước khi lưu
+    // ------------------------------------------------------------
+    function ganSuKienXemTruocAnhBia() {
+      const oAnhBia = document.getElementById("anh_bia");
+      oAnhBia.addEventListener("input", function () {
+        capNhatXemTruocAnhBia(oAnhBia.value.trim());
+      });
+    }
+
+    function capNhatXemTruocAnhBia(url) {
+      const oXemTruoc = document.getElementById("xem-truoc-anh-bia");
+      if (url) {
+        oXemTruoc.src = url;
+        oXemTruoc.style.display = "";
+      } else {
+        oXemTruoc.style.display = "none";
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: hienThiLoi
+    // MỤC ĐÍCH: Hiện dòng thông báo lỗi màu đỏ phía trên nút Lưu
+    // ------------------------------------------------------------
+    function hienThiLoi(noiDung) {
+      const oLoi = document.getElementById("thong-bao-loi-form");
+      oLoi.textContent = noiDung;
+      oLoi.style.display = "block";
+    }
+
+    // ------------------------------------------------------------
+    // XỬ LÝ SUBMIT FORM: gom dữ liệu từ các ô input, gọi luuSachNoiBat()
+    // (sach-noi-bat.js) — hàm này tự biết UPDATE hay INSERT dựa vào
+    // có "idDangSua" hay không
+    // ------------------------------------------------------------
+    document.getElementById("form-sach-noibat").addEventListener("submit", async function (su) {
+      su.preventDefault();
+
+      const oNutLuu = document.getElementById("nut-luu");
+      oNutLuu.disabled = true;
+      oNutLuu.textContent = "Đang lưu...";
+
+      const duLieu = {
+        ten_sach: document.getElementById("ten_sach").value.trim(),
+        tac_gia: document.getElementById("tac_gia").value.trim() || null,
+        anh_bia: document.getElementById("anh_bia").value.trim() || null,
+        link_doc: document.getElementById("link_doc").value.trim() || null,
+        thu_tu: parseInt(document.getElementById("thu_tu").value, 10) || 0,
+        da_xuat_ban: document.getElementById("da_xuat_ban").checked,
+      };
+
+      const ketQua = await luuSachNoiBat(duLieu, idDangSua);
+
+      if (!ketQua.thanhCong) {
+        hienThiLoi("Lưu thất bại: " + (ketQua.loi || "vui lòng thử lại."));
+        oNutLuu.disabled = false;
+        oNutLuu.textContent = "Lưu";
+        return;
+      }
+
+      window.location.href = "quan-ly-sach.html";
+    });
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

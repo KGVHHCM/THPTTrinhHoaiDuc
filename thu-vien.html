@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<!--
+  FILE: thu-vien.html
+  MỤC ĐÍCH: Hiển thị TOÀN BỘ ảnh và video, chia thành 2 tab "Ảnh" / "Video".
+  Nguồn dữ liệu gồm 2 phần được GHÉP chung vào 1 danh sách:
+    1. Ảnh/video gom từ các bài viết ĐÃ XUẤT BẢN (cột anh_dai_dien /
+       danh_sach_anh / danh_sach_video của bảng bai_viet, xem
+       assets/js/gallery.js).
+    2. [MỚI] Ảnh/video do admin tự đăng ở admin/quan-ly-thu-vien.html
+       (bảng thu_vien_media + thu_vien_album, xem docs/thu-vien.sql và
+       assets/js/thu-vien-congkhai.js). Phần này có thêm: hàng nút lọc
+       theo album / nổi bật, chú thích dưới ảnh trong lightbox, thẻ video
+       bấm để mở popup phát.
+  Nếu phần [MỚI] lỗi hoặc chưa tạo bảng, trang vẫn hiện phần 1 như cũ.
+
+  Phía trên khu vực Ảnh/Video còn có:
+    1. "Sách nổi bật" — vòng xoay 3D, dữ liệu từ bảng Supabase riêng
+       "sach_noi_bat" (xem assets/js/sach-noi-bat.js). Đặt TRÊN CÙNG
+       theo đúng yêu cầu.
+    2. "Giới thiệu sách" — carousel trượt ngang, dữ liệu từ bảng
+       Supabase riêng "sach" (xem assets/js/sach.js). 2 bảng này
+       HOÀN TOÀN ĐỘC LẬP với nhau.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thư viện - Không gian văn hóa Hồ Chí Minh</title>
+  <meta
+    name="description"
+    content="Kho ảnh và video ghi lại không gian trưng bày cùng các hoạt động giáo dục lịch sử, văn hóa về Chủ tịch Hồ Chí Minh đã diễn ra tại trường."
+  />
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <!-- MỚI: CSS cho phần ảnh/video do admin đăng (PHẢI đặt SAU style.css) -->
+  <link rel="stylesheet" href="assets/css/thu-vien-media.css" />
+    <!-- Favicon: logo trường hiện trên tab trình duyệt -->
+  <link rel="icon" type="image/png" href="assets/images/logotruong.png" />
+  <link rel="apple-touch-icon" href="assets/images/logotruong.png" />
+</head>
+<body>
+
+  <div id="site-header"></div>
+
+  <main id="noi-dung-chinh">
+    <section class="section">
+      <div class="khung-noi-dung">
+        <p class="nhan-muc">Thư viện</p>
+        <h1>Thư viện ảnh &amp; video</h1>
+        
+        <hr class="duong-ke-muc" />
+
+        <!-- ========================================================
+             KHU VỰC MỚI: SÁCH NỔI BẬT (vòng xoay 3D)
+             Dữ liệu lấy từ bảng Supabase "sach_noi_bat" qua
+             layDanhSachSachNoiBat() trong assets/js/sach-noi-bat.js.
+             Đặt TRÊN CÙNG, trước cả "Giới thiệu sách" bên dưới.
+             ======================================================== -->
+        <section class="khu-vuc-sach-noibat" aria-label="Sách nổi bật">
+          
+          <p class="nhan-muc">
+            <svg class="icon-sao" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 9.2l7.1-.6z" />
+            </svg>
+            Nổi bật 
+          </p>
+          <h2>Sách nổi bật</h2>
+
+          <div class="sach-noibat-khung" id="sach-noibat-khung">
+            <p class="thong-bao-rong-cong-khai" id="sach-noibat-thongbao">
+              Đang tải sách nổi bật...
+            </p>
+            <div
+              class="sach-noibat-vong"
+              id="sach-noibat-vong"
+              style="display: none"
+            ></div>
+          </div>
+        </section>
+
+        <hr class="duong-ke-muc" />
+        <!-- ======================================================== -->
+
+        <!-- ========================================================
+             KHU VỰC: GIỚI THIỆU SÁCH (carousel trượt ngang)
+             Dữ liệu lấy từ bảng Supabase "sach" qua layDanhSachSach()
+             trong assets/js/sach.js.
+             ======================================================== -->
+        <section class="khu-vuc-sach-thuvien" aria-label="Giới thiệu sách">
+          <p class="nhan-muc">
+            <svg class="icon-sach" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
+            Giới thiệu sách
+          </p>
+          <h2>Sách nên đọc</h2>
+
+          <div class="carousel-sach-khung">
+            <div class="carousel-sach-track" id="carousel-sach-track">
+              <p class="thong-bao-rong-cong-khai">Đang tải danh sách sách...</p>
+            </div>
+          </div>
+
+          <!-- Nút Xem thêm / Thu gọn: ẩn sẵn, JS chỉ hiện khi sách nhiều hơn 1 hàng -->
+          <div class="sach-xem-them-khung" id="sach-xem-them-khung" style="display: none">
+            <button
+              type="button"
+              class="nut nut-phu nut-xem-them-sach"
+              id="nut-sach-xem-them"
+              aria-expanded="false"
+              aria-controls="carousel-sach-track"
+            >
+              <span id="nut-sach-xem-them-chu">Xem thêm</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        <hr class="duong-ke-muc" />
+        <!-- ======================================================== -->
+
+        <!-- Thanh tab lọc: dùng lại đúng class "thanh-tab-tulieu" /
+             "tab-tulieu" đã định nghĩa ở style.css và gắn sự kiện
+             bằng ganSuKienTab() có sẵn trong assets/js/section-tulieu.js
+             (hàm này chỉ đơn thuần tô sáng tab đang chọn + gọi
+             callback, không có logic riêng cho trang tư liệu, nên
+             dùng lại được ở đây, không cần viết thêm file JS mới) -->
+        <div
+          class="thanh-tab-tulieu"
+          id="thanh-tab-thuvien"
+          role="tablist"
+          aria-label="Chuyển đổi giữa Ảnh và Video"
+        >
+          <button
+            type="button"
+            class="tab-tulieu dang-active"
+            data-loai="anh"
+            role="tab"
+            aria-selected="true"
+          >
+            Ảnh
+          </button>
+          <button
+            type="button"
+            class="tab-tulieu"
+            data-loai="video"
+            role="tab"
+            aria-selected="false"
+          >
+            Video
+          </button>
+        </div>
+
+        <!-- MỚI: Hàng nút lọc theo album / nổi bật (áp dụng cho cả 2 tab).
+             Ẩn sẵn, JS (veBoLocAlbumThuVien) chỉ hiện khi có album hoặc
+             mục nổi bật do admin tạo -->
+        <div class="thuvien-loc" id="thuvien-loc" hidden></div>
+
+        <!-- Lưới ẢNH: hiện mặc định khi vào trang (tab "Ảnh" đang active) -->
+        <div class="luoi-anh-phu-congkhai" id="luoi-anh-thuvien">
+          <p class="thong-bao-rong-cong-khai">Đang tải thư viện...</p>
+        </div>
+
+        <!-- Lưới VIDEO: ẩn sẵn bằng style="display:none", JS sẽ hiện
+             ra khi người dùng bấm sang tab "Video" -->
+        <div
+          class="luoi-video-thuvien"
+          id="luoi-video-thuvien"
+          style="display: none"
+        ></div>
+      </div>
+    </section>
+  </main>
+  <div class="lightbox-anh" id="lightbox-thuvien" role="dialog" aria-modal="true" aria-label="Xem ảnh phóng to">
+    <button type="button" class="lightbox-nut-dong" id="lightbox-dong" aria-label="Đóng">&times;</button>
+    <button type="button" class="lightbox-nut-dieu-huong lightbox-nut-truoc" id="lightbox-truoc" aria-label="Ảnh trước">&#8249;</button>
+    <img id="lightbox-anh-lon" src="" alt="" />
+    <button type="button" class="lightbox-nut-dieu-huong lightbox-nut-sau" id="lightbox-sau" aria-label="Ảnh sau">&#8250;</button>
+    <!-- MỚI: chú thích (tiêu đề, mô tả, ngày, nguồn) cho ảnh do admin đăng -->
+    <div class="lightbox-chu-thich" id="lightbox-chu-thich"></div>
+    <span class="lightbox-dem-anh" id="lightbox-dem"></span>
+  </div>
+  <div id="site-footer"></div>
+
+  <!-- Thứ tự nhúng JS: thư viện Supabase JS -> supabase-client.js ->
+       posts.js (layDanhSachBaiViet) -> render-card.js (thoatHtml, dùng
+       lại trong gallery.js, sach.js VÀ sach-noi-bat.js) -> gallery.js
+       -> thu-vien-congkhai.js (MỚI: ảnh/video do admin đăng, ghép vào
+       danh sách của gallery.js) -> sach.js (layDanhSachSach/taoHtmlTheSach)
+       -> sach-noi-bat.js (mới, layDanhSachSachNoiBat/taoHtmlTheSachNoiBat)
+       -> section-tulieu.js (ganSuKienTab) -> nav.js (dựng header/footer).
+       Trang PUBLIC này KHÔNG cần auth.js vì không có hành động nào
+       yêu cầu đăng nhập -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/posts.js"></script>
+  <script src="assets/js/render-card.js"></script>
+  <script src="assets/js/gallery.js"></script>
+  <script src="assets/js/thu-vien-cong-khai.js"></script>
+  <script src="assets/js/sach.js"></script>
+  <script src="assets/js/sach-noi-bat.js"></script>
+  <script src="assets/js/section-tulieu.js"></script>
+  <script src="assets/js/nav.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // BIẾN TRẠNG THÁI: giữ lại dữ liệu ảnh/video đã tải 1 lần duy
+    // nhất khi vào trang. Chuyển qua lại giữa 2 tab Ảnh/Video KHÔNG
+    // cần gọi lại API, vì dữ liệu không đổi giữa các lần chuyển tab
+    //
+    // MỚI: mangAnhDangHien = danh sách ảnh ĐANG hiển thị sau khi lọc
+    // theo album. Lightbox chạy trên danh sách này để bấm "ảnh trước /
+    // ảnh sau" chỉ đi qua các ảnh đang thấy trên màn hình.
+    // ------------------------------------------------------------
+    let DU_LIEU_THU_VIEN = { mangAnh: [], mangVideo: [] };
+    let mangAnhDangHien = [];
+
+    // ------------------------------------------------------------
+    // HÀM: khoiTaoTrang
+    // MỤC ĐÍCH: Chạy khi trang vừa tải xong — gắn sự kiện cho thanh
+    // tab, tải TOÀN BỘ ảnh/video 1 lần duy nhất, rồi vẽ ra cả 2 lưới
+    // (lưới nào đang không active thì đã bị ẩn sẵn bằng CSS/inline style),
+    // đồng thời tải và vẽ carousel sách + vòng xoay sách nổi bật (2
+    // việc này ĐỘC LẬP, không phụ thuộc kết quả tải ảnh/video, nên
+    // không việc nào chặn việc nào)
+    //
+    // MỚI: tải song song ảnh/video từ bài viết (gallery.js) và ảnh/video
+    // do admin đăng (thu-vien-congkhai.js), rồi ghép lại. Chỉ báo lỗi
+    // khi CẢ HAI nguồn đều lỗi.
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      ganSuKienTab("thanh-tab-thuvien", xuLyDoiTab);
+      ganSuKienLightbox(); // <-- thêm dòng này
+      ganSuKienVideoThuVien(); // MỚI: bấm thẻ video do admin đăng -> mở popup phát
+
+      const oLuoiAnh = document.getElementById("luoi-anh-thuvien");
+
+      const [ketQua, ketQuaMoi] = await Promise.all([
+        layToanBoAnhVideoThuVien(),
+        layMediaThuVienCongKhai()
+      ]);
+
+      if (!ketQua.thanhCong && !ketQuaMoi.thanhCong) {
+        oLuoiAnh.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Không tải được thư viện, vui lòng thử lại sau.</p>';
+      } else {
+        DU_LIEU_THU_VIEN = gopDuLieuThuVien(ketQua, ketQuaMoi);
+        veBoLocAlbumThuVien(DU_LIEU_THU_VIEN, veLaiHaiLuoi);
+        veLuoiAnh();
+        veLuoiVideo();
+      }
+
+      veCarouselSach();
+      veVongXoaySachNoiBat();
+    }
+
+    // MỚI: vẽ lại cả 2 lưới khi người dùng đổi bộ lọc album
+    function veLaiHaiLuoi() {
+      veLuoiAnh();
+      veLuoiVideo();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veLuoiAnh
+    // MỤC ĐÍCH: Vẽ ảnh (đã lọc theo album đang chọn) ra lưới, mỗi ảnh
+    // là 1 nút bấm mở lightbox. Ảnh do admin đăng dùng bản nhỏ
+    // (urlThumb) cho nhẹ, lightbox mới tải bản lớn.
+    // ------------------------------------------------------------
+    function veLuoiAnh() {
+      const oLuoi = document.getElementById("luoi-anh-thuvien");
+
+      if (DU_LIEU_THU_VIEN.mangAnh.length === 0) {
+        mangAnhDangHien = [];
+        oLuoi.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Chưa có ảnh nào trong thư viện.</p>';
+        return;
+      }
+
+      mangAnhDangHien = locMucTheoBoLocThuVien(DU_LIEU_THU_VIEN.mangAnh);
+
+      if (mangAnhDangHien.length === 0) {
+        oLuoi.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Mục này chưa có ảnh nào.</p>';
+        return;
+      }
+
+      // Mỗi ảnh là 1 nút bấm (không còn là link sang bài viết)
+      oLuoi.innerHTML = mangAnhDangHien
+        .map(function (anh, chiSo) {
+          return (
+            '<button type="button" class="anh-thuvien-nut" data-chi-so="' + chiSo + '">' +
+            '<img src="' + thoatHtml(anh.urlThumb || anh.url) + '" alt="' +
+            thoatHtml(anh.tieuDeBaiViet) + '" loading="lazy" />' +
+            "</button>"
+          );
+        })
+        .join("");
+    }
+
+    // ----- LIGHTBOX -----
+    let chiSoAnhDangXem = 0;
+
+    function moLightbox(chiSo) {
+      const mang = mangAnhDangHien; // MỚI: chỉ đi qua các ảnh đang hiển thị (sau lọc album)
+      if (mang.length === 0) return;
+      chiSoAnhDangXem = (chiSo + mang.length) % mang.length;
+
+      const anh = mang[chiSoAnhDangXem];
+      const oAnh = document.getElementById("lightbox-anh-lon");
+      oAnh.src = anh.url;
+      oAnh.alt = anh.tieuDeBaiViet;
+      document.getElementById("lightbox-dem").textContent =
+        chiSoAnhDangXem + 1 + " / " + mang.length;
+
+      // MỚI: chú thích cho ảnh do admin đăng (ảnh từ bài viết: không có chú thích như cũ)
+      const oLightbox = document.getElementById("lightbox-thuvien");
+      const htmlChuThich = taoChuThichAnhThuVien(anh);
+      document.getElementById("lightbox-chu-thich").innerHTML = htmlChuThich;
+      oLightbox.classList.toggle("co-chu-thich", htmlChuThich !== "");
+
+      oLightbox.classList.add("dang-mo");
+    }
+
+    function dongLightbox() {
+      document.getElementById("lightbox-thuvien").classList.remove("dang-mo");
+    }
+
+    function ganSuKienLightbox() {
+      document.getElementById("luoi-anh-thuvien").addEventListener("click", function (e) {
+        const nut = e.target.closest(".anh-thuvien-nut");
+        if (nut) moLightbox(Number(nut.dataset.chiSo));
+      });
+
+      document.getElementById("lightbox-dong").addEventListener("click", dongLightbox);
+      document.getElementById("lightbox-truoc").addEventListener("click", function () {
+        moLightbox(chiSoAnhDangXem - 1);
+      });
+      document.getElementById("lightbox-sau").addEventListener("click", function () {
+        moLightbox(chiSoAnhDangXem + 1);
+      });
+
+      // Bấm ra vùng nền tối cũng đóng
+      document.getElementById("lightbox-thuvien").addEventListener("click", function (e) {
+        if (e.target === this) dongLightbox();
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (!document.getElementById("lightbox-thuvien").classList.contains("dang-mo")) return;
+        if (e.key === "Escape") dongLightbox();
+        if (e.key === "ArrowLeft") moLightbox(chiSoAnhDangXem - 1);
+        if (e.key === "ArrowRight") moLightbox(chiSoAnhDangXem + 1);
+      });
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veLuoiVideo
+    // MỤC ĐÍCH: Vẽ video (đã lọc theo album đang chọn) ra lưới.
+    //   - Video lấy từ bài viết: dùng lại taoHtmlTheVideo() trong gallery.js
+    //   - [MỚI] Video do admin đăng: taoHtmlTheVideoThuVien() (ảnh xem
+    //     trước + nút phát, bấm mới mở popup)
+    // ------------------------------------------------------------
+    function veLuoiVideo() {
+      const oLuoi = document.getElementById("luoi-video-thuvien");
+
+      if (DU_LIEU_THU_VIEN.mangVideo.length === 0) {
+        oLuoi.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Chưa có video nào trong thư viện.</p>';
+        return;
+      }
+
+      const mangVideoDangHien = locMucTheoBoLocThuVien(DU_LIEU_THU_VIEN.mangVideo);
+
+      if (mangVideoDangHien.length === 0) {
+        oLuoi.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Mục này chưa có video nào.</p>';
+        return;
+      }
+
+      oLuoi.innerHTML = mangVideoDangHien
+        .map(function (video) {
+          return video.nguon === "thuvien"
+            ? taoHtmlTheVideoThuVien(video)
+            : taoHtmlTheVideo(video);
+        })
+        .join("");
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyDoiTab
+    // MỤC ĐÍCH: Được section-tulieu.js gọi lại mỗi khi người dùng bấm
+    // sang tab khác — chỉ cần ẩn/hiện đúng lưới tương ứng, KHÔNG cần
+    // tải lại dữ liệu (đã có sẵn trong DU_LIEU_THU_VIEN từ lúc vào trang)
+    //
+    // THAM SỐ: loai - "anh" hoặc "video", lấy từ data-loai của tab vừa bấm
+    // ------------------------------------------------------------
+    function xuLyDoiTab(loai) {
+      const oLuoiAnh = document.getElementById("luoi-anh-thuvien");
+      const oLuoiVideo = document.getElementById("luoi-video-thuvien");
+
+      // style.display = "" (chuỗi rỗng) nghĩa là "xoá style nội tuyến,
+      // để CSS trong style.css tự quyết định" (lưới ảnh vốn đã có
+      // display: grid định nghĩa sẵn qua class .luoi-anh-phu-congkhai)
+      if (loai === "video") {
+        oLuoiAnh.style.display = "none";
+        oLuoiVideo.style.display = "";
+      } else {
+        oLuoiVideo.style.display = "none";
+        oLuoiAnh.style.display = "";
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veCarouselSach
+    // MỤC ĐÍCH: Gọi layDanhSachSach() (assets/js/sach.js) để tải dữ
+    // liệu từ bảng Supabase "sach", rồi vẽ từng thẻ sách vào track
+    // cuộn ngang bằng taoHtmlTheSach() (cũng ở sach.js)
+    // ------------------------------------------------------------
+    async function veCarouselSach() {
+      const oTrack = document.getElementById("carousel-sach-track");
+
+      const ketQua = await layDanhSachSach();
+
+      if (!ketQua.thanhCong) {
+        oTrack.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Không tải được danh sách sách, vui lòng thử lại sau.</p>';
+        return;
+      }
+
+      if (ketQua.mangSach.length === 0) {
+        oTrack.innerHTML =
+          '<p class="thong-bao-rong-cong-khai">Chưa có sách nào được giới thiệu.</p>';
+        return;
+      }
+
+      oTrack.innerHTML = ketQua.mangSach.map(taoHtmlTheSach).join("");
+      khoiTaoXemThemSach(); // <-- THÊM DÒNG NÀY
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: tinhTyLeSachNoiBat
+    // MỤC ĐÍCH: Tính hệ số nhân kích thước thẻ (--ty-le-sach-noibat)
+    // dựa theo SỐ LƯỢNG sách nổi bật đang có — ít sách (VD 3 quyển)
+    // thì thẻ nhỏ lại, tránh cảm giác "to quá khổ" so với chỉ vài
+    // thẻ thưa thớt; nhiều sách (VD 10 quyển như bản demo gốc) thì
+    // thẻ mới to hết cỡ (tỉ lệ = 1, đúng kích thước gốc trong CSS).
+    //
+    // THAM SỐ: soLuong - tổng số sách nổi bật đã xuất bản
+    // TRẢ VỀ: số thập phân (hệ số nhân), CSS sẽ tự nhân vào --w/--h
+    // ------------------------------------------------------------
+    function tinhTyLeSachNoiBat(soLuong) {
+      if (soLuong <= 3) return 0.62;
+      if (soLuong <= 5) return 0.78;
+      if (soLuong <= 8) return 0.9;
+      return 1;
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veVongXoaySachNoiBat
+    // MỤC ĐÍCH: Gọi layDanhSachSachNoiBat() (assets/js/sach-noi-bat.js)
+    // để tải dữ liệu từ bảng Supabase "sach_noi_bat", đặt biến CSS
+    // "--quantity" (tổng số thẻ) VÀ "--ty-le-sach-noibat" (kích thước
+    // thẻ co giãn theo số lượng, xem tinhTyLeSachNoiBat() ở trên) lên
+    // phần tử vòng xoay, rồi vẽ từng thẻ vào bằng taoHtmlTheSachNoiBat()
+    // (cũng ở sach-noi-bat.js). Vòng xoay 3D CẦN biết trước tổng số
+    // thẻ để chia đều góc xoay (360deg / --quantity), nên phải đặt
+    // --quantity TRƯỚC khi vẽ thẻ.
+    // ------------------------------------------------------------
+    async function veVongXoaySachNoiBat() {
+      const oThongBao = document.getElementById("sach-noibat-thongbao");
+      const oVong = document.getElementById("sach-noibat-vong");
+
+      const ketQua = await layDanhSachSachNoiBat();
+
+      if (!ketQua.thanhCong) {
+        oThongBao.textContent = "Không tải được sách nổi bật, vui lòng thử lại sau.";
+        return;
+      }
+
+      if (ketQua.mangSach.length === 0) {
+        oThongBao.textContent = "Chưa có sách nổi bật nào được chọn.";
+        return;
+      }
+
+      oVong.style.setProperty("--quantity", ketQua.mangSach.length);
+      oVong.style.setProperty("--ty-le-sach-noibat", tinhTyLeSachNoiBat(ketQua.mangSach.length));
+      oVong.innerHTML = ketQua.mangSach
+        .map(function (sach, chiSo) {
+          return taoHtmlTheSachNoiBat(sach, chiSo);
+        })
+        .join("");
+
+
+      oThongBao.style.display = "none";
+      oVong.style.display = "";
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: ganSuKienCuonSach
+    // MỤC ĐÍCH: Gắn sự kiện bấm cho 2 nút mũi tên trái/phải của
+    // carousel sách, mỗi lần bấm cuộn track đi 1 khoảng bằng đúng
+    // bề rộng 1 thẻ sách (220px) cộng khoảng cách giữa các thẻ
+    // (var(--khoang-4) = 24px), cuộn mượt bằng behavior: "smooth"
+    // ------------------------------------------------------------
+    
+    // ------------------------------------------------------------
+    // XEM THÊM / THU GỌN cho lưới "Sách nên đọc"
+    // - Lưới tự chia số cột theo chiều rộng màn hình (CSS grid auto-fill),
+    //   JS đọc lại số cột thực tế để biết "1 hàng" là bao nhiêu cuốn
+    // - Mặc định chỉ hiện 1 hàng; mỗi lần bấm "Xem thêm" hiện thêm 2 hàng
+    // - Hiện hết thì nút đổi thành "Thu gọn" (về lại 1 hàng)
+    // ------------------------------------------------------------
+    const SO_HANG_THEM_MOI_LAN = 2;
+    let soHangSachDangHien = 1;
+    let daGanSuKienXemThemSach = false;
+
+    // Đếm số cột thực tế của lưới (trình duyệt tự tính từ auto-fill)
+    function demSoCotSach() {
+      const oTrack = document.getElementById("carousel-sach-track");
+      const cot = getComputedStyle(oTrack).gridTemplateColumns;
+      if (!cot || cot === "none") return 1;
+      return Math.max(1, cot.split(" ").filter(Boolean).length);
+    }
+
+    // Ẩn/hiện thẻ sách theo số hàng đang mở, cập nhật nút.
+    // tuChiSo: nếu có, các thẻ mới hiện từ vị trí này sẽ chạy hiệu ứng hiện lên
+    function capNhatHienThiSach(tuChiSo) {
+      const oTrack = document.getElementById("carousel-sach-track");
+      const oKhung = document.getElementById("sach-xem-them-khung");
+      const oNut = document.getElementById("nut-sach-xem-them");
+      const oChu = document.getElementById("nut-sach-xem-them-chu");
+      const dsThe = oTrack.querySelectorAll(".the-sach");
+
+      if (dsThe.length === 0) {
+        oKhung.style.display = "none";
+        return;
+      }
+
+      const soCot = demSoCotSach();
+      const tongHang = Math.ceil(dsThe.length / soCot);
+      if (soHangSachDangHien > tongHang) soHangSachDangHien = tongHang;
+      const gioiHan = soHangSachDangHien * soCot;
+
+      dsThe.forEach(function (the, i) {
+        const anDi = i >= gioiHan;
+        the.classList.toggle("an-sach", anDi);
+
+        if (!anDi && typeof tuChiSo === "number" && i >= tuChiSo) {
+          the.classList.remove("vua-hien");
+          void the.offsetWidth; // ép chạy lại animation
+          the.classList.add("vua-hien");
+          setTimeout(function () { the.classList.remove("vua-hien"); }, 700);
+        }
+      });
+
+      // Chỉ có 1 hàng hoặc ít hơn -> không cần nút
+      if (tongHang <= 1) {
+        oKhung.style.display = "none";
+        return;
+      }
+
+      const daHienHet = soHangSachDangHien >= tongHang;
+      oKhung.style.display = "";
+      oChu.textContent = daHienHet ? "Thu gọn" : "Xem thêm";
+      oNut.classList.toggle("dang-thu-gon", daHienHet);
+      oNut.setAttribute("aria-expanded", daHienHet ? "true" : "false");
+    }
+
+    function khoiTaoXemThemSach() {
+      soHangSachDangHien = 1;
+      capNhatHienThiSach(null);
+
+      if (daGanSuKienXemThemSach) return; // chỉ gắn sự kiện 1 lần
+      daGanSuKienXemThemSach = true;
+
+      document.getElementById("nut-sach-xem-them").addEventListener("click", function () {
+        const soThe = document.querySelectorAll("#carousel-sach-track .the-sach").length;
+        const soCot = demSoCotSach();
+        const tongHang = Math.ceil(soThe / soCot);
+
+        if (soHangSachDangHien >= tongHang) {
+          // Đang hiện hết -> Thu gọn về 1 hàng, cuộn lên đầu mục sách
+          soHangSachDangHien = 1;
+          capNhatHienThiSach(null);
+          document.querySelector(".khu-vuc-sach-thuvien").scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          const soTheDangHien = soHangSachDangHien * soCot;
+          soHangSachDangHien = Math.min(soHangSachDangHien + SO_HANG_THEM_MOI_LAN, tongHang);
+          capNhatHienThiSach(soTheDangHien);
+        }
+      });
+
+      // Đổi kích thước cửa sổ -> số cột đổi -> tính lại thẻ nào ẩn/hiện
+      let dangCho = false;
+      window.addEventListener("resize", function () {
+        if (dangCho) return;
+        dangCho = true;
+        requestAnimationFrame(function () {
+          dangCho = false;
+          capNhatHienThiSach(null);
+        });
+      });
+    }
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

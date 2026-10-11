@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/quan-ly-bai-viet.html
+  MỤC ĐÍCH: Hiển thị danh sách bài viết loại "Tin tức & Hoạt động"
+  (loai_bai_viet = 'tin_tuc'). 3 loại còn lại (hoi_uc/nghien_cuu/
+  ky_niem) đã được TÁCH sang trang quan-ly-tu-lieu.html riêng, KHÔNG
+  còn hiển thị ở đây nữa -> bỏ luôn ô lọc theo loại (vì giờ trang
+  này chỉ quản lý đúng 1 loại duy nhất).
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý Tin tức & Hoạt động - Quản trị</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+  <header class="header-admin">
+    <a class="lien-ket-tieu-de-admin" href="dashboard.html">
+      <h1>Quản lý Tin tức &amp; Hoạt động</h1>
+    </a>
+    <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+  </header>
+
+  <main class="noi-dung-admin">
+
+    <!-- Không cần ô lọc theo loại nữa vì trang này chỉ còn 1 loại
+         duy nhất (tin_tuc) -> chỉ còn nút "Thêm mới" -->
+    <div class="thanh-cong-cu">
+      <span></span>
+      <a href="bai-viet-form.html" class="nut-them-moi">+ Thêm tin tức mới</a>
+    </div>
+
+    <table class="bang-bai-viet">
+      <thead>
+        <tr>
+          <th>Tiêu đề</th>
+          <th>Trạng thái</th>
+          <th>Ngày tạo</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="than-bang-bai-viet">
+      </tbody>
+    </table>
+
+    <p class="thong-bao-rong" id="thong-bao-rong" style="display: none">
+      Chưa có tin tức nào. Bấm "+ Thêm tin tức mới" để bắt đầu.
+    </p>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/posts.js"></script>
+
+  <script>
+    function thoatHtml(chuoi) {
+      const oDivAo = document.createElement("div");
+      oDivAo.textContent = chuoi == null ? "" : String(chuoi);
+      return oDivAo.innerHTML;
+    }
+
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+      await taiLaiDanhSach();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiLaiDanhSach
+    // MỤC ĐÍCH: Luôn tải danh sách bài viết loại "tin_tuc" (cố định),
+    // không còn nhận tham số lọc vì trang này chỉ quản lý 1 loại duy nhất.
+    // ------------------------------------------------------------
+    async function taiLaiDanhSach() {
+      const ketQua = await layDanhSachBaiViet("tin_tuc", false);
+
+      if (!ketQua.thanhCong) {
+        alert("Không tải được danh sách: " + ketQua.loi);
+        return;
+      }
+
+      veLaiBangBaiViet(ketQua.duLieu);
+    }
+
+    function veLaiBangBaiViet(danhSachBaiViet) {
+      const oThan = document.getElementById("than-bang-bai-viet");
+      const oThongBaoRong = document.getElementById("thong-bao-rong");
+
+      oThan.innerHTML = "";
+
+      if (danhSachBaiViet.length === 0) {
+        oThongBaoRong.style.display = "block";
+        return;
+      }
+      oThongBaoRong.style.display = "none";
+
+      danhSachBaiViet.forEach(function (bv) {
+        const oDong = document.createElement("tr");
+
+        const ngayTao = new Date(bv.created_at).toLocaleDateString("vi-VN");
+        const lopTrangThai = bv.da_xuat_ban ? "da-xuat-ban" : "chua-xuat-ban";
+        const chuTrangThai = bv.da_xuat_ban ? "Đã xuất bản" : "Bản nháp";
+        const tieuDeAnToan = thoatHtml(bv.tieu_de);
+
+        oDong.innerHTML = `
+          <td>${tieuDeAnToan}</td>
+          <td><span class="nhan-trang-thai ${lopTrangThai}">${chuTrangThai}</span></td>
+          <td>${ngayTao}</td>
+          <td>
+            <div class="nhom-nut-hanh-dong">
+              <a class="nut-sua" href="bai-viet-form.html?id=${encodeURIComponent(bv.id)}">Sửa</a>
+              <button
+                class="nut-xoa"
+                type="button"
+                data-id="${thoatHtml(bv.id)}"
+                data-tieu-de="${tieuDeAnToan}"
+              >Xoá</button>
+            </div>
+          </td>
+        `;
+
+        const oNutXoa = oDong.querySelector(".nut-xoa");
+        oNutXoa.addEventListener("click", function () {
+          xuLyXoaBaiViet(oNutXoa.dataset.id, oNutXoa.dataset.tieuDe);
+        });
+
+        oThan.appendChild(oDong);
+      });
+    }
+
+    async function xuLyXoaBaiViet(id, tieuDe) {
+      const xacNhan = confirm('Bạn có chắc muốn xoá tin tức "' + tieuDe + '"?\nHành động này không thể hoàn tác.');
+
+      if (!xacNhan) {
+        return;
+      }
+
+      const ketQua = await xoaBaiViet(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Xoá thất bại: " + ketQua.loi);
+        return;
+      }
+
+      await taiLaiDanhSach();
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

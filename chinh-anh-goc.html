@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chỉnh ảnh phòng 3D</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pannellum/2.5.6/pannellum.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #14161a; color: #e8e8e8; }
+    .wrap { display: grid; grid-template-columns: 1fr 340px; height: 100vh; }
+    #viewer { width: 100%; height: 100%; background: #000; }
+    aside { padding: 16px; overflow-y: auto; border-left: 1px solid #2a2d33; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    select, button { width: 100%; padding: 8px; margin: 4px 0; border-radius: 6px; border: 1px solid #3a3e46;
+                     background: #1f2229; color: inherit; font-size: 14px; cursor: pointer; }
+    button.chinh { background: #b3261e; border-color: #b3261e; font-weight: 600; }
+    .truong { margin: 12px 0; }
+    .truong label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+    .truong input[type=range] { width: 100%; }
+    .tu-dong { font-size: 12px; color: #aaa; justify-content: flex-start !important; gap: 6px; }
+    #thong-tin, #goi-y { font-size: 12px; color: #9aa0a6; line-height: 1.5; margin: 8px 0; }
+    #goi-y.canh-bao { color: #ffb74d; }
+    #trang-thai { font-size: 13px; min-height: 20px; margin-top: 8px; }
+    @media (max-width: 800px) {
+      .wrap { grid-template-columns: 1fr; grid-template-rows: 55vh auto; height: auto; }
+      aside { border-left: 0; border-top: 1px solid #2a2d33; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="viewer"></div>
+
+    <aside>
+      <h1>Chỉnh ảnh phòng 3D</h1>
+      <select id="chon-scene"></select>
+      <div id="thong-tin"></div>
+
+      <div id="cac-truong"></div>
+
+      <div id="goi-y"></div>
+      <button id="nut-ap-goi-y" type="button">Áp dụng gợi ý HFOV tối thiểu</button>
+      <button id="nut-lay-goc" type="button">Lấy góc nhìn hiện tại làm mặc định</button>
+      <button id="nut-dat-lai" type="button">Đặt lại về giá trị đã lưu</button>
+      <button id="nut-luu" class="chinh" type="button">Lưu vào Supabase</button>
+      <div id="trang-thai"></div>
+    </aside>
+  </div>
+
+  <!-- supabase-client.js đã nạp thư viện supabase và tạo client -->
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pannellum/2.5.6/pannellum.js"></script>
+  <script src="assets/js/chinh-anh-goc.js"></script>
+</body>
+</html>

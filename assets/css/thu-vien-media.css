@@ -1,0 +1,218 @@
+/* ============================================================
+   FILE: assets/css/thu-vien-media.css
+   MỤC ĐÍCH: Giao diện cho phần ảnh/video do admin đăng ở trang
+   thu-vien.html: hàng nút lọc album, thẻ video bấm để phát, popup phát
+   video, chú thích dưới ảnh trong lightbox.
+
+   File này chỉ THÊM class mới, không ghi đè class nào của style.css
+   (dùng lại biến màu/khoảng cách trong :root của style.css), nên phải
+   nhúng SAU style.css:
+     <link rel="stylesheet" href="assets/css/style.css" />
+     <link rel="stylesheet" href="assets/css/thu-vien-media.css" />
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1. HÀNG NÚT LỌC ALBUM (Tất cả / ★ Nổi bật / từng album)
+   Dùng kiểu nút viên thuốc giống .tab-tulieu nhưng nhỏ hơn và đổi
+   màu nền đậm (thay vì đỏ) khi chọn, để phân biệt với tab Ảnh/Video
+   ------------------------------------------------------------ */
+.thuvien-loc {
+  margin-bottom: var(--khoang-4);
+}
+
+.thuvien-loc[hidden] {
+  display: none;
+}
+
+.thuvien-loc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--khoang-2);
+}
+
+.thuvien-chip {
+  padding: 6px var(--khoang-3);
+  border: 1.5px solid var(--mau-vien-dam);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--mau-chu-nhat);
+  background-color: transparent;
+  transition: background-color var(--toc-do-hieu-ung) ease,
+    border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.thuvien-chip:hover {
+  border-color: var(--mau-do);
+  color: var(--mau-do);
+}
+
+.thuvien-chip.dang-active {
+  background-color: var(--mau-chu);
+  border-color: var(--mau-chu);
+  color: var(--mau-nen);
+}
+
+.thuvien-chip-dem {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  opacity: 0.65;
+}
+
+.thuvien-loc-mo-ta {
+  margin-top: var(--khoang-2);
+  font-size: 0.9rem;
+  color: var(--mau-chu-nhat);
+  max-width: none;
+}
+
+/* ------------------------------------------------------------
+   2. THẺ VIDEO DO ADMIN ĐĂNG (ảnh xem trước + nút phát)
+   Thẻ vẫn mang class .the-video-thuvien của style.css (khung, viền,
+   bo góc, figcaption), ở đây chỉ thêm phần riêng của ảnh + nút phát
+   ------------------------------------------------------------ */
+.thuvien-video-nut {
+  display: block;
+  width: 100%;
+  padding: 0;
+  cursor: pointer;
+  background-color: #000;
+}
+
+.thuvien-video-anh {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  background-color: var(--mau-nen-toi);
+}
+
+.thuvien-video-anh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thuvien-video-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Nút phát tròn đỏ ở giữa ảnh, cùng màu đỏ nhận diện của site */
+.thuvien-video-play svg {
+  width: 64px;
+  height: 64px;
+  padding: 16px 14px 16px 18px; /* tam giác lệch phải 1 chút cho cân mắt */
+  border-radius: 50%;
+  color: #fff;
+  background-color: rgba(166, 25, 46, 0.92);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: transform var(--toc-do-hieu-ung) ease,
+    background-color var(--toc-do-hieu-ung) ease;
+}
+
+.thuvien-video-nut:hover .thuvien-video-play svg,
+.thuvien-video-nut:focus-visible .thuvien-video-play svg {
+  transform: scale(1.08);
+  background-color: var(--mau-do-dam);
+}
+
+.thuvien-video-tieu-de {
+  display: block;
+}
+
+.thuvien-video-phu {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--mau-chu-nhat);
+  /* Giới hạn 2 dòng để các thẻ video có chiều cao gần đều nhau */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------
+   3. POPUP PHÁT VIDEO
+   Dựa trên .lightbox-anh (nền tối phủ toàn màn hình, hiện khi có
+   class .dang-mo) và .lightbox-nut-dong của style.css
+   ------------------------------------------------------------ */
+.lightbox-video {
+  flex-direction: column;
+}
+
+.lightbox-video-khung {
+  width: min(960px, 100%);
+}
+
+.lightbox-video-khung iframe,
+.lightbox-video-khung video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 78vh;
+  border: none;
+  border-radius: var(--ban-kinh-vua);
+  background-color: #000;
+}
+
+.lightbox-video-tieu-de {
+  margin-top: var(--khoang-3);
+  max-width: min(960px, 100%);
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--mau-chu-tren-nen-toi);
+}
+
+/* ------------------------------------------------------------
+   4. CHÚ THÍCH DƯỚI ẢNH TRONG LIGHTBOX (chỉ ảnh do admin đăng)
+   Khi có chú thích, JS thêm class .co-chu-thich lên lightbox để thu
+   nhỏ chiều cao ảnh, chừa chỗ cho chú thích phía dưới
+   ------------------------------------------------------------ */
+.lightbox-chu-thich {
+  display: none;
+  position: absolute;
+  bottom: 56px; /* nằm trên bộ đếm "1 / N" ở đáy lightbox */
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 2 * var(--khoang-4)));
+  max-height: 18vh;
+  overflow-y: auto;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--mau-chu-tren-nen-toi);
+}
+
+.lightbox-anh.co-chu-thich .lightbox-chu-thich {
+  display: block;
+}
+
+.lightbox-anh.co-chu-thich img {
+  max-height: 70vh;
+}
+
+.lightbox-chu-thich strong {
+  display: block;
+  font-family: var(--font-tieu-de);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.lightbox-chu-thich span {
+  display: block;
+  margin-top: 2px;
+}
+
+.lightbox-chu-thich small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #c9c2af;
+}

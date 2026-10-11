@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Không gian 2D - Không gian văn hóa Hồ Chí Minh</title>
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/khong-gian-3d.css" />
+    <!-- Favicon: logo trường hiện trên tab trình duyệt -->
+  <link rel="icon" type="image/png" href="assets/images/logotruong.png" />
+  <link rel="apple-touch-icon" href="assets/images/logotruong.png" />
+</head>
+<body>
+
+  <div id="site-header"></div>
+
+  <main id="noi-dung-chinh">
+
+    <section class="kg3d-gioi-thieu">
+      <h1>Không gian 2D</h1>
+    </section>
+
+    <section class="kg2d-khu-vuc">
+          <!-- Dán đoạn này vào đúng chỗ đang hiển thị ảnh 2D (thay cho thẻ <img> hiện tại) -->
+      <div class="khung-anh-2d" id="khungAnh2D">
+        <div class="khung-anh-2d__man-hinh">
+          <img class="khung-anh-2d__anh" id="anhHienTai2D" alt="Ảnh không gian 2D">
+
+          <button type="button" class="khung-anh-2d__mui-ten khung-anh-2d__mui-ten--trai" id="nutTruoc2D" aria-label="Ảnh trước">&#10094;</button>
+          <button type="button" class="khung-anh-2d__mui-ten khung-anh-2d__mui-ten--phai" id="nutSau2D" aria-label="Ảnh tiếp theo">&#10095;</button>
+
+          <button type="button" class="khung-anh-2d__nut-toan-man-hinh" id="nutToanManHinh2D" aria-label="Xem toàn màn hình" title="Xem toàn màn hình">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Dãy nút số được JS tự tạo -->
+        <div class="khung-anh-2d__danh-sach-so" id="danhSachSo2D"></div>
+      </div>
+
+      <h2 class="kg2d-tieu-de" id="kg2d-tieu-de-trung-bay" style="display:none">Ảnh trưng bày</h2>
+      <div class="kg2d-luoi" id="kg2d-trung-bay"></div>
+
+      <p class="kg2d-thong-bao" id="kg2d-thong-bao"></p>
+    </section>
+
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-client.js"></script>
+
+  <script>
+    function layDb() {
+      if (typeof supabaseClient !== "undefined") return supabaseClient;
+      if (window.supabaseClient) return window.supabaseClient;
+      return null;
+    }
+
+    function veAnh(oChua, danhSach, laNen) {
+      danhSach.forEach(function (anh, i) {
+        const lienKet = document.createElement("a");
+        lienKet.href = anh.url_anh;
+        lienKet.target = "_blank";
+        lienKet.rel = "noopener";
+        lienKet.className = laNen ? "kg2d-anh-nen" : "kg2d-anh-the";
+
+        const img = document.createElement("img");
+        img.src = anh.url_anh;
+        img.alt = (laNen ? "Ảnh nền " : "Ảnh trưng bày ") + (i + 1);
+        img.loading = "lazy";
+
+        lienKet.appendChild(img);
+        oChua.appendChild(lienKet);
+      });
+    }
+        /* ===== KHUNG ẢNH 2D — dán vào file JS của trang khong-gian-3d.html =====
+    *
+    * Cách dùng: sau khi lấy danh sách ảnh 2D từ Supabase, gọi:
+    *   khoiTaoKhungAnh2D(["https://.../anh1.jpg", "https://.../anh2.jpg", ...]);
+    */
+    function khoiTaoKhungAnh2D(danhSachAnh) {
+      const khung = document.getElementById("khungAnh2D");
+      const anh = document.getElementById("anhHienTai2D");
+      const nutTruoc = document.getElementById("nutTruoc2D");
+      const nutSau = document.getElementById("nutSau2D");
+      const nutToanManHinh = document.getElementById("nutToanManHinh2D");
+      const khungSo = document.getElementById("danhSachSo2D");
+      if (!khung || !anh) return;
+
+      // Không có ảnh thì ẩn khung
+      if (!danhSachAnh || danhSachAnh.length === 0) {
+        khung.style.display = "none";
+        return;
+      }
+      khung.style.display = "";
+
+      let viTri = 0;
+
+      // Tạo dãy nút số
+      khungSo.innerHTML = "";
+      danhSachAnh.forEach((_, i) => {
+        const nut = document.createElement("button");
+        nut.type = "button";
+        nut.className = "khung-anh-2d__so";
+        nut.textContent = i + 1;
+        nut.setAttribute("aria-label", "Xem ảnh số " + (i + 1));
+        nut.addEventListener("click", () => hienAnh(i));
+        khungSo.appendChild(nut);
+      });
+
+      function hienAnh(i) {
+        const tong = danhSachAnh.length;
+        viTri = (i + tong) % tong; // vòng tròn: hết ảnh cuối quay về ảnh đầu
+        anh.src = danhSachAnh[viTri];
+        anh.alt = "Ảnh không gian 2D số " + (viTri + 1);
+        khungSo.querySelectorAll(".khung-anh-2d__so").forEach((nut, k) => {
+          nut.classList.toggle("dang-chon", k === viTri);
+        });
+      }
+
+      // Ẩn mũi tên nếu chỉ có 1 ảnh
+      const chiMotAnh = danhSachAnh.length === 1;
+      nutTruoc.style.display = chiMotAnh ? "none" : "";
+      nutSau.style.display = chiMotAnh ? "none" : "";
+
+      // Tránh gắn trùng sự kiện nếu hàm được gọi lại (vd: sau khi tải lại dữ liệu)
+      nutTruoc.onclick = () => hienAnh(viTri - 1);
+      nutSau.onclick = () => hienAnh(viTri + 1);
+
+      // Toàn màn hình thật (phóng cả khung nên mũi tên và nút số vẫn dùng được)
+      nutToanManHinh.onclick = () => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else if (khung.requestFullscreen) {
+          khung.requestFullscreen();
+        } else if (khung.webkitRequestFullscreen) {
+          khung.webkitRequestFullscreen(); // Safari
+        }
+      };
+
+      // Phím mũi tên trái/phải khi đang xem toàn màn hình
+      document.onkeydown = (e) => {
+        if (document.fullscreenElement !== khung) return;
+        if (e.key === "ArrowLeft") hienAnh(viTri - 1);
+        if (e.key === "ArrowRight") hienAnh(viTri + 1);
+      };
+
+      // Vuốt trái/phải trên điện thoại
+      let xBatDau = null;
+      const manHinh = khung.querySelector(".khung-anh-2d__man-hinh");
+      manHinh.ontouchstart = (e) => { xBatDau = e.touches[0].clientX; };
+      manHinh.ontouchend = (e) => {
+        if (xBatDau === null) return;
+        const chenhLech = e.changedTouches[0].clientX - xBatDau;
+        if (Math.abs(chenhLech) > 50) hienAnh(viTri + (chenhLech < 0 ? 1 : -1));
+        xBatDau = null;
+      };
+
+      hienAnh(0);
+    }
+    async function khoiTaoKhongGian2D() {
+      const oThongBao = document.getElementById("kg2d-thong-bao");
+      const db = layDb();
+      if (!db) { oThongBao.textContent = "Không tìm thấy client Supabase."; return; }
+
+      const { data, error } = await db
+        .from("khong_gian_anh")
+        .select("*")
+        .order("thu_tu", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      if (error) { oThongBao.textContent = "Không tải được ảnh: " + error.message; return; }
+
+      const dsNen = (data || []).filter(function (a) { return a.loai_anh === "nen"; });
+      const dsTrungBay = (data || []).filter(function (a) { return a.loai_anh === "trung_bay"; });
+
+      if (dsNen.length === 0 && dsTrungBay.length === 0) {
+        oThongBao.textContent = "Không gian đang được cập nhật, mời quay lại sau.";
+        return;
+      }
+
+      khoiTaoKhungAnh2D(dsNen.map(function (a) { return a.url_anh; }));
+
+      if (dsTrungBay.length) {
+        document.getElementById("kg2d-tieu-de-trung-bay").style.display = "block";
+        veAnh(document.getElementById("kg2d-trung-bay"), dsTrungBay, false);
+      }
+    }
+
+    khoiTaoKhongGian2D();
+  </script>
+
+  <script src="assets/js/nav.js"></script>
+</body>
+</html>

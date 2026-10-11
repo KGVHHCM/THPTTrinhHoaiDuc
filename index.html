@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!--
+  FILE: kgvh.html
+  MỤC ĐÍCH: TRANG CHỦ của chuyên mục "Không gian văn hóa Hồ Chí Minh"
+
+  CẬP NHẬT (phần "Chân dung lịch sử"):
+  Thêm 1 section MỚI ngay sau Hero, TRƯỚC lưới 4 trụ cột "Khám phá"
+  đã có sẵn — hiển thị cuộc đời & sự nghiệp Chủ tịch Hồ Chí Minh dạng
+  Tabs, dữ liệu lấy từ bảng Supabase "cuoc_doi_giai_doan" (xem
+  docs/schema_cuocdoi.sql). KHÔNG xoá/sửa lưới 4 trụ cột điều hướng
+  cũ, chỉ thêm section mới phía trên nó.
+
+  2 file mới cần nhúng: assets/css/cuoc-doi.css (SAU style.css) và
+  assets/js/cuocdoi.js (SAU supabase-client.js, vì cần gọi Supabase).
+
+  CẬP NHẬT MỚI NHẤT: đã XÓA section Hero "Giới thiệu" (banner nền
+  xanh lá cũ) theo yêu cầu — sẽ thay bằng banner mới sau. Trang giờ
+  bắt đầu thẳng từ section "Chân dung lịch sử".
+-->
+<html lang="vi">
+<head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Không gian văn hóa Hồ Chí Minh</title>
+  <meta
+    name="description"
+    content="Không gian văn hóa Hồ Chí Minh — nơi lưu giữ tin tức, hồi ức nhân chứng, tư liệu nghiên cứu và tổ chức các hoạt động giáo dục lịch sử, văn hóa về Chủ tịch Hồ Chí Minh."
+  />
+
+  <!-- style.css là file CSS DÙNG CHUNG cho mọi trang public, chứa
+       toàn bộ token màu/font + style cho header/footer/nút bấm/thẻ -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- CSS RIÊNG cho khu vực Tabs "Cuộc đời & Sự nghiệp", nhúng SAU
+       style.css để dùng lại được các biến màu/khoảng cách đã khai
+       báo ở đó (xem chú thích đầu file cuoc-doi.css) -->
+  <link rel="stylesheet" href="assets/css/cuoc-doi.css" />
+    <!-- Favicon: logo trường hiện trên tab trình duyệt -->
+  <link rel="icon" type="image/png" href="assets/images/logotruong.png" />
+  <link rel="apple-touch-icon" href="assets/images/logotruong.png" />
+</head>
+<body>
+
+  <!-- Điểm neo để assets/js/nav.js chèn header (logo + menu) vào đây.
+       Xem hướng dẫn đầy đủ ở đầu file assets/js/nav.js -->
+  <div id="site-header"></div>
+
+  <!-- id="noi-dung-chinh" BẮT BUỘC phải có: liên kết "Bỏ qua đến nội
+       dung chính" mà nav.js sinh ra sẽ trỏ tới đúng id này -->
+  <main id="noi-dung-chinh">
+
+    <!-- ========================================================
+         BANNER MỚI: ảnh full chiều rộng trang, chiều cao TỰ ĐỘNG
+         theo đúng tỉ lệ gốc của ảnh (KHÔNG ép chiều cao cố định) —
+         đây là cách DUY NHẤT vừa full-width vừa hiện được 100% ảnh,
+         không bị crop và không bị dư khoảng trống 2 bên.
+         ======================================================== -->
+    <section class="banner-anh-moi" aria-label="Banner Không gian văn hóa Hồ Chí Minh">
+      <img src="assets/images/KGVHHCM-banner.jpg" alt="Không gian sinh hoạt văn hóa Bác Hồ - Lan tỏa giá trị văn hóa, tư tưởng, đạo đức Hồ Chí Minh" />
+    </section>
+
+    <!-- ========================================================
+         SECTION: CHÂN DUNG LỊCH SỬ — CUỘC ĐỜI & SỰ NGHIỆP
+         Đây là phần chính của trang giới thiệu. Nội dung tabs +
+         panel được assets/js/cuocdoi.js dựng động từ Supabase,
+         2 khung rỗng bên dưới (#cuoc-doi-tabs, #cuoc-doi-panels)
+         chỉ là "điểm neo" để JS chèn HTML vào.
+         ======================================================== -->
+    <section class="section section-chan-dung">
+      <div class="khung-noi-dung">
+        <p class="nhan-muc">
+          <svg class="icon-sao" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7.1L12 17.6 5.7 21.3l1.7-7.1L2 9.5l7.1-.6z"/>
+          </svg>
+          <span>Chân dung lịch sử</span>
+        </p>
+        <h2>Cuộc đời &amp; Sự nghiệp Chủ tịch Hồ Chí Minh</h2>
+       
+
+        <div class="cuoc-doi-khung">
+          <div class="cuoc-doi-tabs" id="cuoc-doi-tabs" role="tablist" aria-label="Các giai đoạn cuộc đời"></div>
+          <div class="cuoc-doi-panels" id="cuoc-doi-panels"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         LƯỚI TRỤ CỘT NỘI DUNG (giữ nguyên, không thay đổi)
+         ======================================================== -->
+    <section class="section section-tru-cot">
+      <div class="khung-noi-dung">
+        <p class="nhan-muc">
+          <svg class="icon-sao-bon-canh" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5C11.3 16.9 7.1 12.7 1.5 12 7.1 11.3 11.3 7.1 12 1.5z"/>
+          </svg>
+          <span>Khám phá</span>
+        </p>
+        <h2>Bốn mảng nội dung chính</h2>
+        <span class="gach-tieu-de" aria-hidden="true"></span>
+        
+
+        <div class="luoi-tru-cot">
+          <a href="tin-tuc-hoat-dong.html" class="tru-cot">
+            <h3>Tin tức &amp; Hoạt động</h3>
+            <p class="tru-cot-mota">
+              Cập nhật tin tức, hình ảnh các hoạt động giáo dục, ngoại
+              khóa và hội thi liên quan đến Chủ tịch Hồ Chí Minh.
+            </p>
+            <span class="tru-cot-xem-them">Xem thêm <span aria-hidden="true">→</span></span>
+          </a>
+
+          <a href="tu-lieu-ky-uc.html" class="tru-cot">
+            <h3>Tư liệu &amp; Ký ức</h3>
+            <p class="tru-cot-mota">
+              Hồi ức nhân chứng, bài nghiên cứu và những dấu mốc, ngày
+              lễ quan trọng gắn với Bác Hồ và lịch sử dân tộc.
+            </p>
+            <span class="tru-cot-xem-them">Xem thêm <span aria-hidden="true">→</span></span>
+          </a>
+
+          <a href="thu-vien.html" class="tru-cot">
+            <h3>Thư viện</h3>
+            <p class="tru-cot-mota">
+              Kho ảnh và video ghi lại không gian trưng bày cùng các
+              hoạt động đã diễn ra tại trường.
+            </p>
+            <span class="tru-cot-xem-them">Xem thêm <span aria-hidden="true">→</span></span>
+          </a>
+
+          <a href="khong-gian-3d.html" class="tru-cot">
+            <h3>Không gian 2D</h3>
+            <p class="tru-cot-mota">
+              Tham quan không gian trưng bày bằng ảnh 360°, ngay cả
+              khi không thể đến xem trực tiếp.
+            </p>
+            <span class="tru-cot-xem-them">Xem thêm <span aria-hidden="true">→</span></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Điểm neo để assets/js/nav.js chèn footer vào đây -->
+  <div id="site-footer"></div>
+
+  <!-- Trang chủ giờ ĐÃ CẦN đọc dữ liệu từ Supabase (bảng
+       cuoc_doi_giai_doan) nên phải nhúng thêm thư viện Supabase JS
+       + supabase-client.js + cuocdoi.js, khác với bản trước đây
+       (trước đây trang chủ chỉ tĩnh, chỉ cần nav.js) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/nav.js"></script>
+  <script src="assets/js/cuocdoi.js"></script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<!--
+  FILE: admin/dashboard.html
+
+  CẬP NHẬT:
+  - "Tin tức & Hoạt động" -> quan-ly-bai-viet.html
+  - "Tư liệu & Ký ức" -> quan-ly-tu-lieu.html
+  - "Cuộc đời & Sự nghiệp" -> quan-ly-cuoc-doi.html
+  - "Sách" -> quan-ly-sach.html
+  - "Ảnh không gian 2D" -> quan-ly-anh-khong-gian.html
+  - "Thư viện ảnh & video" -> quan-ly-thu-vien.html (MỚI)
+
+  Giữ nguyên các chức năng quản trị và đăng xuất.
+-->
+
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Trang quản trị - Không gian văn hóa Hồ Chí Minh</title>
+
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+
+<body>
+
+  <header class="header-admin">
+
+    <h1>Quản trị: Không gian văn hóa Hồ Chí Minh</h1>
+
+    <div class="cum-nut-header">
+
+      <a class="nut-quay-ve-web" href="../index.html">
+        ← Quay về xem web
+      </a>
+
+      <button class="nut-dang-xuat" onclick="dangXuat()">
+        Đăng xuất
+      </button>
+
+    </div>
+
+  </header>
+
+
+  <main class="noi-dung-admin">
+
+    <p id="loi-chao">
+      Đang tải thông tin tài khoản...
+    </p>
+
+
+    <div class="danh-sach-lien-ket">
+
+      <!-- TIN TỨC & HOẠT ĐỘNG -->
+      <a class="the-lien-ket" href="quan-ly-bai-viet.html">
+
+        <h3>Tin tức &amp; Hoạt động</h3>
+
+        <p>
+          Thêm, sửa, xoá tin tức và hoạt động
+        </p>
+
+      </a>
+
+
+      <!-- TƯ LIỆU & KÝ ỨC -->
+      <a class="the-lien-ket" href="quan-ly-tu-lieu.html">
+
+        <h3>Tư liệu &amp; Ký ức</h3>
+
+        <p>
+          Thêm, sửa, xoá hồi ức, bài nghiên cứu, kỷ niệm &amp; ngày lễ
+        </p>
+
+      </a>
+
+
+      <!-- CUỘC ĐỜI & SỰ NGHIỆP -->
+      <a class="the-lien-ket" href="quan-ly-cuoc-doi.html">
+
+        <h3>Cuộc đời &amp; Sự nghiệp</h3>
+
+        <p>
+          Quản lý các giai đoạn hiển thị ở trang chủ (Tabs)
+        </p>
+
+      </a>
+
+
+      <!-- SÁCH -->
+      <a class="the-lien-ket" href="quan-ly-sach.html">
+
+        <h3>Sách</h3>
+
+        <p>
+          Quản lý sách hiển thị ở carousel trang Thư viện
+        </p>
+
+      </a>
+
+      <!-- ẢNH KHÔNG GIAN 2D -->
+      <a class="the-lien-ket" href="quan-ly-anh-khong-gian.html">
+        <h3>Ảnh không gian 2D</h3>
+        <p>Thêm ảnh nền/bản đồ và ảnh trưng bày cho không gian 2D</p>
+      </a>
+
+      <!-- THƯ VIỆN ẢNH & VIDEO (MỚI) -->
+      <a class="the-lien-ket" href="quan-ly-thu-vien.html">
+        <h3>Thư viện ảnh &amp; video</h3>
+        <p>Đăng ảnh, video, quản lý album, tag và thứ tự hiển thị</p>
+      </a>
+
+    </div>
+
+  </main>
+
+
+  <!-- SUPABASE -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <script src="../assets/js/supabase-client.js"></script>
+
+  <script src="../assets/js/auth.js"></script>
+
+
+  <script>
+
+    async function khoiTaoTrang() {
+
+      // Kiểm tra quyền admin
+      await baoVeTrangAdmin();
+
+      // Lấy phiên đăng nhập
+      const session = await layPhienDangNhap();
+
+      // Tìm phần lời chào
+      const oLoiChao = document.getElementById("loi-chao");
+
+      // Hiển thị email người đang đăng nhập
+      oLoiChao.textContent =
+        "Xin chào, " + session.user.email + " 👋";
+
+    }
+
+    // Khởi tạo trang
+    khoiTaoTrang();
+
+  </script>
+
+</body>
+
+</html>

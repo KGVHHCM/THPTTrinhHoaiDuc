@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/cuoc-doi-form.html
+  MỤC ĐÍCH: Form dùng CHUNG để THÊM MỚI hoặc SỬA 1 giai đoạn cuộc
+  đời & sự nghiệp Chủ tịch Hồ Chí Minh.
+
+  CÁCH XÁC ĐỊNH CHẾ ĐỘ: giống hệt bai-viet-form.html — có ?id=
+  trên URL thì là chế độ Sửa, không có thì là Thêm mới.
+
+  Đơn giản hơn bai-viet-form.html vì giai đoạn cuộc đời KHÔNG có:
+    - Chọn loại bài viết (chỉ có đúng 1 "loại" duy nhất)
+    - Trường "Người kể" / video
+  Nhưng CÓ THÊM trường "thu_tu" (thứ tự hiển thị) so với bai_viet,
+  vì thứ tự ở đây mang ý nghĩa lịch sử, không chỉ liệt kê.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thêm/Sửa giai đoạn - Quản trị</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+  <header class="header-admin">
+    <h1 id="tieu-de-trang">Thêm giai đoạn mới</h1>
+    <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+  </header>
+
+  <main class="noi-dung-admin">
+    <form id="form-giai-doan" onsubmit="xuLyLuuGiaiDoan(event)">
+
+      <!-- Tiêu đề giai đoạn -->
+      <div class="nhom-truong-form">
+        <label for="input-tieu-de">Tiêu đề giai đoạn *</label>
+        <input type="text" id="input-tieu-de" placeholder="VD: Thời niên thiếu" required />
+      </div>
+
+      <!-- Khoảng thời gian -->
+      <div class="nhom-truong-form">
+        <label for="input-khoang-thoi-gian">Khoảng thời gian *</label>
+        <input type="text" id="input-khoang-thoi-gian" placeholder="VD: 1890 - 1911" required />
+        <p class="ghi-chu-truong">
+          Gõ tự do dạng chữ (không phải ngày cụ thể), vì nhiều mốc
+          lịch sử chỉ biết khoảng năm.
+        </p>
+      </div>
+
+      <!-- Thứ tự hiển thị -->
+      <div class="nhom-truong-form">
+        <label for="input-thu-tu">Thứ tự hiển thị *</label>
+        <input type="number" id="input-thu-tu" min="0" step="1" required />
+        <p class="ghi-chu-truong">
+          Số nhỏ hơn hiển thị trước trên trục thời gian. Cũng có thể
+          sắp xếp lại bằng nút ↑/↓ ở trang danh sách sau khi lưu.
+        </p>
+      </div>
+
+      <!-- Mô tả ngắn (dự phòng, không bắt buộc) -->
+      <div class="nhom-truong-form">
+        <label for="input-mo-ta-ngan">Mô tả ngắn</label>
+        <textarea id="input-mo-ta-ngan" rows="2"></textarea>
+        <p class="ghi-chu-truong">Không bắt buộc, dự phòng cho việc hiển thị rút gọn sau này.</p>
+      </div>
+
+      <!-- Nội dung chi tiết -->
+      <div class="nhom-truong-form">
+        <label for="input-noi-dung">Nội dung chi tiết *</label>
+        <textarea id="input-noi-dung" rows="10" required></textarea>
+      </div>
+
+      <!-- Ảnh chính -->
+      <div class="nhom-truong-form">
+        <label for="input-anh-chinh">Ảnh minh hoạ chính</label>
+        <input type="file" id="input-anh-chinh" accept="image/*" onchange="xemTruocAnhChinh(event)" />
+        <p class="ghi-chu-truong">Nên dùng ảnh dọc (tỉ lệ khoảng 4:5) để hiển thị đẹp trên trang chủ.</p>
+        <img id="xem-truoc-anh-chinh" class="xem-truoc-anh" alt="Xem trước ảnh chính" />
+      </div>
+
+      <!-- Checkbox xuất bản -->
+      <div class="nhom-truong-form">
+        <div class="dong-checkbox">
+          <input type="checkbox" id="input-xuat-ban" />
+          <label for="input-xuat-ban" style="margin: 0">
+            Xuất bản ngay (bỏ chọn để lưu dưới dạng bản nháp)
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <button type="submit" class="nut-luu-bai-viet" id="nut-luu">Lưu giai đoạn</button>
+        <a href="quan-ly-cuoc-doi.html" class="nut-huy">Huỷ</a>
+      </div>
+
+      <div class="thong-bao-ket-qua" id="thong-bao-ket-qua" style="display: none"></div>
+    </form>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/cuocdoi.js"></script>
+
+  <script>
+    // idGiaiDoanDangSua: giống idBaiVietDangSua bên bai-viet-form.html
+    let idGiaiDoanDangSua = null;
+
+    // urlAnhChinhHienTai: URL ảnh chính ĐÃ CÓ SẴN (chỉ có khi đang sửa)
+    let urlAnhChinhHienTai = null;
+
+    // fileAnhChinhMoi: File ảnh chính MỚI vừa chọn, chưa upload
+    let fileAnhChinhMoi = null;
+
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+
+      const thamSo = new URLSearchParams(window.location.search);
+      const id = thamSo.get("id");
+
+      if (!id) {
+        // Chế độ Thêm mới: gợi ý sẵn thu_tu = số giai đoạn hiện có,
+        // để giai đoạn mới mặc định xếp cuối trục thời gian, admin
+        // có thể tự sửa lại số này nếu muốn chèn vào giữa
+        const ketQuaDanhSach = await layDanhSachGiaiDoan(false);
+        if (ketQuaDanhSach.thanhCong) {
+          document.getElementById("input-thu-tu").value = ketQuaDanhSach.duLieu.length;
+        } else {
+          document.getElementById("input-thu-tu").value = 0;
+        }
+        return;
+      }
+
+      idGiaiDoanDangSua = id;
+      document.getElementById("tieu-de-trang").textContent = "Sửa giai đoạn";
+
+      const ketQua = await layChiTietGiaiDoan(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Không tải được giai đoạn: " + ketQua.loi);
+        return;
+      }
+
+      const gd = ketQua.duLieu;
+      document.getElementById("input-tieu-de").value = gd.tieu_de;
+      document.getElementById("input-khoang-thoi-gian").value = gd.khoang_thoi_gian;
+      document.getElementById("input-thu-tu").value = gd.thu_tu;
+      document.getElementById("input-mo-ta-ngan").value = gd.mo_ta_ngan || "";
+      document.getElementById("input-noi-dung").value = gd.noi_dung;
+      document.getElementById("input-xuat-ban").checked = gd.da_xuat_ban;
+
+      if (gd.anh_chinh) {
+        urlAnhChinhHienTai = gd.anh_chinh;
+        const oAnh = document.getElementById("xem-truoc-anh-chinh");
+        oAnh.src = gd.anh_chinh;
+        oAnh.style.display = "block";
+      }
+    }
+
+    function xemTruocAnhChinh(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+
+      fileAnhChinhMoi = file;
+
+      const duongDanTam = URL.createObjectURL(file);
+      const oAnh = document.getElementById("xem-truoc-anh-chinh");
+      oAnh.src = duongDanTam;
+      oAnh.style.display = "block";
+    }
+
+    async function xuLyLuuGiaiDoan(event) {
+      event.preventDefault();
+
+      const nutLuu = document.getElementById("nut-luu");
+      const oThongBao = document.getElementById("thong-bao-ket-qua");
+
+      nutLuu.disabled = true;
+      nutLuu.textContent = "Đang lưu...";
+      oThongBao.style.display = "none";
+
+      try {
+        // Xác định URL ảnh chính cuối cùng: upload ảnh mới nếu có
+        // chọn, ngược lại giữ nguyên URL cũ (hoặc null nếu chưa từng có)
+        let urlAnhChinhCuoiCung = urlAnhChinhHienTai;
+
+        if (fileAnhChinhMoi) {
+          const ketQuaUpload = await uploadAnhCuocDoi(fileAnhChinhMoi);
+          if (!ketQuaUpload.thanhCong) {
+            throw new Error("Lỗi tải ảnh: " + ketQuaUpload.loi);
+          }
+          urlAnhChinhCuoiCung = ketQuaUpload.url;
+        }
+
+        const duLieuGiaiDoan = {
+          tieu_de: document.getElementById("input-tieu-de").value.trim(),
+          khoang_thoi_gian: document.getElementById("input-khoang-thoi-gian").value.trim(),
+          thu_tu: parseInt(document.getElementById("input-thu-tu").value, 10) || 0,
+          mo_ta_ngan: document.getElementById("input-mo-ta-ngan").value.trim(),
+          noi_dung: document.getElementById("input-noi-dung").value.trim(),
+          anh_chinh: urlAnhChinhCuoiCung,
+          da_xuat_ban: document.getElementById("input-xuat-ban").checked,
+        };
+
+        let ketQuaLuu;
+        if (idGiaiDoanDangSua) {
+          ketQuaLuu = await suaGiaiDoan(idGiaiDoanDangSua, duLieuGiaiDoan);
+        } else {
+          ketQuaLuu = await themGiaiDoan(duLieuGiaiDoan);
+        }
+
+        if (!ketQuaLuu.thanhCong) {
+          throw new Error(ketQuaLuu.loi);
+        }
+
+        oThongBao.textContent = "Lưu giai đoạn thành công!";
+        oThongBao.className = "thong-bao-ket-qua thanh-cong";
+        oThongBao.style.display = "block";
+
+        setTimeout(function () {
+          window.location.href = "quan-ly-cuoc-doi.html";
+        }, 800);
+      } catch (loi) {
+        oThongBao.textContent = "Có lỗi xảy ra: " + loi.message;
+        oThongBao.className = "thong-bao-ket-qua that-bai";
+        oThongBao.style.display = "block";
+
+        nutLuu.disabled = false;
+        nutLuu.textContent = "Lưu giai đoạn";
+      }
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/quan-ly-cuoc-doi.html
+  MỤC ĐÍCH: Hiển thị danh sách TOÀN BỘ giai đoạn cuộc đời (cả nháp
+  lẫn đã xuất bản), sắp xếp theo "thu_tu", cho phép admin:
+    - Bấm "Thêm giai đoạn mới" -> sang cuoc-doi-form.html
+    - Bấm "Sửa" 1 dòng -> sang cuoc-doi-form.html?id=xxx
+    - Bấm "Xoá" 1 dòng -> xoá khỏi database (có xác nhận)
+    - Bấm mũi tên ↑ / ↓ để đổi thu_tu, đưa giai đoạn lên/xuống
+      trên trục thời gian (khác với quan-ly-bai-viet.html vì thứ
+      tự hiển thị ở đây MANG Ý NGHĨA LỊCH SỬ, không chỉ là danh
+      sách liệt kê thông thường)
+
+  Cấu trúc file dựa đúng theo pattern của admin/quan-ly-bai-viet.html
+  để đồng bộ với phần admin đã có sẵn.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý cuộc đời & sự nghiệp - Quản trị</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+  <style>
+    /* Vài class nhỏ riêng cho trang này, không đủ nhiều để tách
+       thành 1 file CSS riêng — chỉ liên quan tới nút sắp xếp thứ tự */
+    .nut-sap-xep {
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid #d0d0d0;
+      background-color: #fff;
+      color: #444;
+    }
+    .nut-sap-xep:hover {
+      border-color: #a6192e;
+      color: #a6192e;
+    }
+    .nut-sap-xep:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .nhom-nut-sap-xep {
+      display: flex;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header-admin">
+    <a class="lien-ket-tieu-de-admin" href="dashboard.html">
+      <h1>Quản lý cuộc đời & sự nghiệp</h1>
+    </a>
+    <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+  </header>
+
+  <main class="noi-dung-admin">
+
+    <div class="thanh-cong-cu">
+      <p style="font-size: 13px; color: #666">
+        Thứ tự dưới đây là thứ tự hiển thị trên trục thời gian ở
+        trang chủ. Dùng nút ↑ / ↓ để sắp xếp lại.
+      </p>
+      <a href="cuoc-doi-form.html" class="nut-them-moi">+ Thêm giai đoạn mới</a>
+    </div>
+
+    <table class="bang-bai-viet">
+      <thead>
+        <tr>
+          <th style="width: 90px">Thứ tự</th>
+          <th>Khoảng thời gian</th>
+          <th>Tiêu đề</th>
+          <th>Trạng thái</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="than-bang-giai-doan">
+        <!-- JS sẽ chèn các dòng <tr> vào đây -->
+      </tbody>
+    </table>
+
+    <p class="thong-bao-rong" id="thong-bao-rong" style="display: none">
+      Chưa có giai đoạn nào. Bấm "+ Thêm giai đoạn mới" để bắt đầu.
+    </p>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/cuocdoi.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // BIẾN TOÀN CỤC: giữ lại danh sách vừa tải để các thao tác sắp
+    // xếp lại (↑/↓) không cần gọi database mỗi lần bấm, chỉ tính
+    // toán tại chỗ rồi gửi 2 lệnh update thu_tu lên database
+    // ------------------------------------------------------------
+    let dsGiaiDoanDangQuanLy = [];
+
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+      await taiLaiDanhSach();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiLaiDanhSach
+    // MỤC ĐÍCH: Gọi API lấy TOÀN BỘ giai đoạn (cả nháp), vẽ lại bảng
+    // ------------------------------------------------------------
+    async function taiLaiDanhSach() {
+      const ketQua = await layDanhSachGiaiDoan(false);
+
+      if (!ketQua.thanhCong) {
+        alert("Không tải được danh sách: " + ketQua.loi);
+        return;
+      }
+
+      dsGiaiDoanDangQuanLy = ketQua.duLieu;
+      veLaiBangGiaiDoan();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veLaiBangGiaiDoan
+    // MỤC ĐÍCH: Sinh các dòng <tr> từ mảng dsGiaiDoanDangQuanLy
+    // (biến toàn cục, ĐÃ được sắp xếp sẵn theo thu_tu từ database)
+    // ------------------------------------------------------------
+    function veLaiBangGiaiDoan() {
+      const oThan = document.getElementById("than-bang-giai-doan");
+      const oThongBaoRong = document.getElementById("thong-bao-rong");
+
+      oThan.innerHTML = "";
+
+      if (dsGiaiDoanDangQuanLy.length === 0) {
+        oThongBaoRong.style.display = "block";
+        return;
+      }
+      oThongBaoRong.style.display = "none";
+
+      dsGiaiDoanDangQuanLy.forEach(function (gd, chiSo) {
+        const oDong = document.createElement("tr");
+
+        const lopTrangThai = gd.da_xuat_ban ? "da-xuat-ban" : "chua-xuat-ban";
+        const chuTrangThai = gd.da_xuat_ban ? "Đã xuất bản" : "Bản nháp";
+
+        const tieuDeAnToan = thoatHtmlCuocDoi(gd.tieu_de);
+        const thoiGianAnToan = thoatHtmlCuocDoi(gd.khoang_thoi_gian);
+
+        oDong.innerHTML = `
+          <td>
+            <div class="nhom-nut-sap-xep">
+              <button type="button" class="nut-sap-xep" data-huong="len" ${chiSo === 0 ? "disabled" : ""}>↑</button>
+              <button type="button" class="nut-sap-xep" data-huong="xuong" ${chiSo === dsGiaiDoanDangQuanLy.length - 1 ? "disabled" : ""}>↓</button>
+            </div>
+          </td>
+          <td>${thoiGianAnToan}</td>
+          <td>${tieuDeAnToan}</td>
+          <td><span class="nhan-trang-thai ${lopTrangThai}">${chuTrangThai}</span></td>
+          <td>
+            <div class="nhom-nut-hanh-dong">
+              <a class="nut-sua" href="cuoc-doi-form.html?id=${encodeURIComponent(gd.id)}">Sửa</a>
+              <button class="nut-xoa" type="button" data-id="${thoatHtmlCuocDoi(gd.id)}" data-tieu-de="${tieuDeAnToan}">Xoá</button>
+            </div>
+          </td>
+        `;
+
+        oDong.querySelector('[data-huong="len"]').addEventListener("click", function () {
+          doiThuTu(chiSo, chiSo - 1);
+        });
+        oDong.querySelector('[data-huong="xuong"]').addEventListener("click", function () {
+          doiThuTu(chiSo, chiSo + 1);
+        });
+
+        const oNutXoa = oDong.querySelector(".nut-xoa");
+        oNutXoa.addEventListener("click", function () {
+          xuLyXoaGiaiDoan(oNutXoa.dataset.id, oNutXoa.dataset.tieuDe);
+        });
+
+        oThan.appendChild(oDong);
+      });
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: doiThuTu
+    // MỤC ĐÍCH: Hoán đổi giá trị thu_tu giữa 2 giai đoạn ở vị trí
+    // chiSoA và chiSoB trong mảng đang hiển thị, rồi lưu cả 2 thay
+    // đổi lên database, cuối cùng tải lại danh sách để vẽ đúng thứ
+    // tự mới
+    //
+    // THAM SỐ: chiSoA, chiSoB - vị trí (index) của 2 dòng cần hoán đổi
+    // ------------------------------------------------------------
+    async function doiThuTu(chiSoA, chiSoB) {
+      const giaiDoanA = dsGiaiDoanDangQuanLy[chiSoA];
+      const giaiDoanB = dsGiaiDoanDangQuanLy[chiSoB];
+
+      // Hoán đổi giá trị thu_tu giữa 2 giai đoạn (đơn giản, dễ hiểu
+      // hơn cách "dồn số" lại từ đầu mỗi lần đổi chỗ)
+      const ketQua1 = await suaGiaiDoan(giaiDoanA.id, { thu_tu: giaiDoanB.thu_tu });
+      const ketQua2 = await suaGiaiDoan(giaiDoanB.id, { thu_tu: giaiDoanA.thu_tu });
+
+      if (!ketQua1.thanhCong || !ketQua2.thanhCong) {
+        alert("Đổi thứ tự thất bại, vui lòng thử lại.");
+        return;
+      }
+
+      await taiLaiDanhSach();
+    }
+
+    async function xuLyXoaGiaiDoan(id, tieuDe) {
+      const xacNhan = confirm(
+        'Bạn có chắc muốn xoá giai đoạn "' + tieuDe + '"?\nHành động này không thể hoàn tác.'
+      );
+      if (!xacNhan) {
+        return;
+      }
+
+      const ketQua = await xoaGiaiDoan(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Xoá thất bại: " + ketQua.loi);
+        return;
+      }
+
+      await taiLaiDanhSach();
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

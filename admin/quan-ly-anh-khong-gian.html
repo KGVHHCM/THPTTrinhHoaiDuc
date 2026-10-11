@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+
+<!--
+  FILE: admin/quan-ly-anh-khong-gian.html
+
+  MỤC ĐÍCH: Quản lý ảnh cho "Không gian 2D".
+    - Tab "Ảnh nền / bản đồ"  -> loai_anh = 'nen'
+    - Tab "Ảnh trưng bày"     -> loai_anh = 'trung_bay'
+  Thêm ảnh bằng upload file (nhiều file cùng lúc) HOẶC dán link ảnh.
+  Mỗi ảnh chỉ lưu: ảnh + loại + thứ tự (đúng theo yêu cầu "ảnh thôi").
+
+  PHỤ THUỘC (có sẵn trong dự án):
+    ../assets/css/admin.css, ../assets/js/supabase-client.js,
+    ../assets/js/auth.js (baoVeTrangAdmin, dangXuat)
+  BẢNG/BUCKET: chạy docs/khong-gian-anh.sql trước.
+
+  CSS riêng của trang này đều có tiền tố "akg-" nên không đụng
+  tới admin.css hay bất kỳ trang admin nào khác.
+-->
+
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ảnh không gian 2D - Quản trị</title>
+
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+
+  <style>
+    .akg-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+
+    .akg-tab {
+      padding: 8px 18px;
+      border: 1.5px solid #cfc4a4;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #6b6153;
+      background: transparent;
+      cursor: pointer;
+    }
+    .akg-tab:hover { border-color: #a6192e; color: #a6192e; }
+    .akg-tab.dang-active { background: #a6192e; border-color: #a6192e; color: #fff; }
+
+    .akg-khung {
+      border: 1px solid #e4ddc9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 28px;
+      background: #fff;
+    }
+    .akg-khung h2 { font-size: 1.1rem; margin-bottom: 4px; }
+    .akg-ghi-chu { font-size: 0.88rem; color: #6b6153; margin-bottom: 16px; }
+
+    .akg-hang { margin-bottom: 16px; }
+    .akg-hang label { display: block; font-weight: 600; margin-bottom: 6px; }
+    .akg-hang input[type="text"],
+    .akg-hang input[type="url"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cfc4a4;
+      border-radius: 4px;
+      font-size: 0.95rem;
+    }
+
+    .akg-xem-truoc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .akg-xem-truoc img {
+      width: 84px; height: 84px; object-fit: cover;
+      border-radius: 4px; border: 1px solid #e4ddc9;
+    }
+
+    .akg-nut-gui {
+      padding: 10px 24px;
+      background: #a6192e;
+      color: #fff;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .akg-nut-gui:hover { background: #841221; }
+    .akg-nut-gui:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .akg-thong-bao { margin-top: 12px; font-size: 0.92rem; min-height: 1.3em; }
+    .akg-thong-bao.loi { color: #a6192e; }
+    .akg-thong-bao.ok { color: #2f6b3a; }
+
+    .akg-luoi {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 16px;
+    }
+    .akg-the {
+      border: 1px solid #e4ddc9;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .akg-the-anh { aspect-ratio: 4 / 3; background: #f3ede0; }
+    .akg-the-anh img { width: 100%; height: 100%; object-fit: cover; }
+    .akg-the-thanh { display: flex; gap: 6px; padding: 8px; align-items: center; }
+    .akg-the-thanh button {
+      padding: 4px 10px;
+      border: 1px solid #cfc4a4;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: #fff;
+    }
+    .akg-the-thanh button:hover:not(:disabled) { border-color: #a6192e; color: #a6192e; }
+    .akg-the-thanh button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .akg-the-thanh .akg-xoa { margin-left: auto; color: #a6192e; }
+
+    .akg-rong { color: #6b6153; padding: 24px 0; }
+  </style>
+</head>
+
+<body>
+
+  <header class="header-admin">
+    <h1>Quản trị: Ảnh không gian 2D</h1>
+
+    <div class="cum-nut-header">
+      <a class="nut-quay-ve-web" href="dashboard.html">← Về trang quản trị</a>
+      <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="noi-dung-admin">
+
+    <div class="akg-tabs" id="akg-tabs">
+      <button type="button" class="akg-tab dang-active" data-loai="nen">Ảnh nền / bản đồ</button>
+      <button type="button" class="akg-tab" data-loai="trung_bay">Ảnh trưng bày</button>
+    </div>
+
+    <section class="akg-khung">
+      <h2 id="akg-tieu-de-form">Thêm ảnh nền / bản đồ</h2>
+      <p class="akg-ghi-chu">Chọn một hoặc nhiều file, hoặc dán link ảnh. Có thể dùng cả hai cách cùng lúc.</p>
+
+      <div class="akg-hang">
+        <label for="akg-file">Tải ảnh từ máy (tối đa 10 MB mỗi ảnh)</label>
+        <input type="file" id="akg-file" accept="image/*" multiple />
+        <div class="akg-xem-truoc" id="akg-xem-truoc"></div>
+      </div>
+
+      <div class="akg-hang">
+        <label for="akg-link">Hoặc dán link ảnh</label>
+        <input type="url" id="akg-link" placeholder="https://..." />
+      </div>
+
+      <button type="button" class="akg-nut-gui" id="akg-nut-them">Thêm ảnh</button>
+      <p class="akg-thong-bao" id="akg-thong-bao" role="status"></p>
+    </section>
+
+    <section>
+      <h2 id="akg-tieu-de-ds" style="margin-bottom:12px;">Danh sách ảnh</h2>
+      <div class="akg-luoi" id="akg-luoi"></div>
+    </section>
+
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+
+  <script>
+    // ---------------- CẤU HÌNH ----------------
+    const TEN_BUCKET = "khong-gian-anh"; // đổi nếu bạn dùng bucket khác
+    const TEN_BANG = "khong_gian_anh";
+    const DUNG_LUONG_TOI_DA = 10 * 1024 * 1024; // 10 MB
+
+    const NHAN_LOAI = {
+      nen: "ảnh nền / bản đồ",
+      trung_bay: "ảnh trưng bày"
+    };
+
+    // Lấy client Supabase đã tạo trong assets/js/supabase-client.js.
+    // Nếu file đó đặt tên biến khác, sửa lại đúng 1 hàm này.
+    function layDb() {
+      if (typeof supabaseClient !== "undefined") return supabaseClient;
+      if (typeof supabase !== "undefined" && typeof supabase.from === "function") return supabase;
+      if (window.supabaseClient) return window.supabaseClient;
+      return null;
+    }
+
+    // ---------------- TRẠNG THÁI ----------------
+    let loaiHienTai = "nen";
+    let danhSach = [];
+    let urlXemTruoc = [];
+
+    const oFile = document.getElementById("akg-file");
+    const oLink = document.getElementById("akg-link");
+    const oXemTruoc = document.getElementById("akg-xem-truoc");
+    const oThongBao = document.getElementById("akg-thong-bao");
+    const oLuoi = document.getElementById("akg-luoi");
+    const nutThem = document.getElementById("akg-nut-them");
+
+    function baoLoi(noiDung) {
+      oThongBao.className = "akg-thong-bao loi";
+      oThongBao.textContent = noiDung;
+    }
+    function baoOk(noiDung) {
+      oThongBao.className = "akg-thong-bao ok";
+      oThongBao.textContent = noiDung;
+    }
+    function xoaThongBao() {
+      oThongBao.className = "akg-thong-bao";
+      oThongBao.textContent = "";
+    }
+
+    // ---------------- TẢI DANH SÁCH ----------------
+    async function taiDanhSach() {
+      const db = layDb();
+      if (!db) { baoLoi("Không tìm thấy client Supabase. Kiểm tra lại hàm layDb()."); return; }
+
+      const { data, error } = await db
+        .from(TEN_BANG)
+        .select("*")
+        .eq("loai_anh", loaiHienTai)
+        .order("thu_tu", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        baoLoi("Không tải được danh sách ảnh: " + error.message + " (đã chạy file SQL chưa?)");
+        return;
+      }
+      danhSach = data || [];
+      veDanhSach();
+    }
+
+    function veDanhSach() {
+      oLuoi.textContent = "";
+
+      if (danhSach.length === 0) {
+        const p = document.createElement("p");
+        p.className = "akg-rong";
+        p.textContent = "Chưa có " + NHAN_LOAI[loaiHienTai] + " nào. Thêm ảnh đầu tiên ở khung phía trên.";
+        oLuoi.appendChild(p);
+        return;
+      }
+
+      danhSach.forEach(function (anh, i) {
+        const the = document.createElement("div");
+        the.className = "akg-the";
+
+        const khungAnh = document.createElement("div");
+        khungAnh.className = "akg-the-anh";
+        const img = document.createElement("img");
+        img.src = anh.url_anh;
+        img.alt = "Ảnh số " + (i + 1);
+        img.loading = "lazy";
+        khungAnh.appendChild(img);
+
+        const thanh = document.createElement("div");
+        thanh.className = "akg-the-thanh";
+
+        const nutTrai = document.createElement("button");
+        nutTrai.type = "button";
+        nutTrai.textContent = "←";
+        nutTrai.title = "Đưa lên trước";
+        nutTrai.disabled = i === 0;
+        nutTrai.addEventListener("click", function () { doiViTri(i, -1); });
+
+        const nutPhai = document.createElement("button");
+        nutPhai.type = "button";
+        nutPhai.textContent = "→";
+        nutPhai.title = "Đưa ra sau";
+        nutPhai.disabled = i === danhSach.length - 1;
+        nutPhai.addEventListener("click", function () { doiViTri(i, 1); });
+
+        const nutXoa = document.createElement("button");
+        nutXoa.type = "button";
+        nutXoa.className = "akg-xoa";
+        nutXoa.textContent = "Xoá";
+        nutXoa.addEventListener("click", function () { xoaAnh(anh); });
+
+        thanh.appendChild(nutTrai);
+        thanh.appendChild(nutPhai);
+        thanh.appendChild(nutXoa);
+
+        the.appendChild(khungAnh);
+        the.appendChild(thanh);
+        oLuoi.appendChild(the);
+      });
+    }
+
+    // ---------------- ĐỔI TAB ----------------
+    document.getElementById("akg-tabs").addEventListener("click", function (e) {
+      const nut = e.target.closest(".akg-tab");
+      if (!nut) return;
+      loaiHienTai = nut.dataset.loai;
+
+      document.querySelectorAll(".akg-tab").forEach(function (t) {
+        t.classList.toggle("dang-active", t === nut);
+      });
+      document.getElementById("akg-tieu-de-form").textContent = "Thêm " + NHAN_LOAI[loaiHienTai];
+      xoaThongBao();
+      taiDanhSach();
+    });
+
+    // ---------------- XEM TRƯỚC FILE ĐÃ CHỌN ----------------
+    function giaiPhongXemTruoc() {
+      urlXemTruoc.forEach(function (u) { URL.revokeObjectURL(u); });
+      urlXemTruoc = [];
+      oXemTruoc.textContent = "";
+    }
+
+    oFile.addEventListener("change", function () {
+      giaiPhongXemTruoc();
+      Array.from(oFile.files).forEach(function (f) {
+        if (!f.type.startsWith("image/")) return;
+        const u = URL.createObjectURL(f);
+        urlXemTruoc.push(u);
+        const img = document.createElement("img");
+        img.src = u;
+        img.alt = f.name;
+        oXemTruoc.appendChild(img);
+      });
+    });
+
+    // ---------------- THÊM ẢNH ----------------
+    function duoiFile(ten) {
+      const m = /\.([a-zA-Z0-9]+)$/.exec(ten);
+      return m ? m[1].toLowerCase() : "jpg";
+    }
+
+    function laLinkHopLe(chuoi) {
+      try {
+        const u = new URL(chuoi);
+        return u.protocol === "https:" || u.protocol === "http:";
+      } catch (e) {
+        return false;
+      }
+    }
+
+    nutThem.addEventListener("click", async function () {
+      xoaThongBao();
+      const db = layDb();
+      if (!db) { baoLoi("Không tìm thấy client Supabase. Kiểm tra lại hàm layDb()."); return; }
+
+      const cacFile = Array.from(oFile.files);
+      const link = oLink.value.trim();
+
+      if (cacFile.length === 0 && !link) {
+        baoLoi("Hãy chọn ít nhất một file ảnh hoặc dán một link ảnh.");
+        return;
+      }
+      for (const f of cacFile) {
+        if (!f.type.startsWith("image/")) { baoLoi("\"" + f.name + "\" không phải file ảnh."); return; }
+        if (f.size > DUNG_LUONG_TOI_DA) { baoLoi("\"" + f.name + "\" lớn hơn 10 MB."); return; }
+      }
+      if (link && !laLinkHopLe(link)) {
+        baoLoi("Link ảnh phải bắt đầu bằng http:// hoặc https://");
+        return;
+      }
+
+      nutThem.disabled = true;
+      const daUpload = []; // để dọn lại nếu bước lưu bảng bị lỗi
+      const cacDong = [];
+      let thuTuTiep = danhSach.length ? Math.max.apply(null, danhSach.map(function (a) { return a.thu_tu; })) + 1 : 0;
+
+      try {
+        for (let i = 0; i < cacFile.length; i++) {
+          baoOk("Đang tải lên " + (i + 1) + "/" + cacFile.length + "...");
+          const f = cacFile[i];
+          const duongDan = loaiHienTai + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + duoiFile(f.name);
+
+          const { error: loiUp } = await db.storage.from(TEN_BUCKET).upload(duongDan, f, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: f.type
+          });
+          if (loiUp) throw new Error("Tải \"" + f.name + "\" lên thất bại: " + loiUp.message);
+
+          daUpload.push(duongDan);
+          const { data: pub } = db.storage.from(TEN_BUCKET).getPublicUrl(duongDan);
+          cacDong.push({
+            loai_anh: loaiHienTai,
+            url_anh: pub.publicUrl,
+            duong_dan_storage: duongDan,
+            thu_tu: thuTuTiep++
+          });
+        }
+
+        if (link) {
+          cacDong.push({
+            loai_anh: loaiHienTai,
+            url_anh: link,
+            duong_dan_storage: null,
+            thu_tu: thuTuTiep++
+          });
+        }
+
+        const { error: loiLuu } = await db.from(TEN_BANG).insert(cacDong);
+        if (loiLuu) throw new Error("Lưu vào danh sách thất bại: " + loiLuu.message);
+
+        oFile.value = "";
+        oLink.value = "";
+        giaiPhongXemTruoc();
+        baoOk("Đã thêm " + cacDong.length + " ảnh.");
+        await taiDanhSach();
+      } catch (loi) {
+        if (daUpload.length) {
+          await db.storage.from(TEN_BUCKET).remove(daUpload); // dọn file đã lên mà chưa được lưu bảng
+        }
+        baoLoi(loi.message);
+      } finally {
+        nutThem.disabled = false;
+      }
+    });
+
+    // ---------------- ĐỔI VỊ TRÍ ----------------
+    async function doiViTri(i, huong) {
+      const j = i + huong;
+      if (j < 0 || j >= danhSach.length) return;
+
+      const db = layDb();
+      const thuTuMoi = danhSach.slice();
+      const tam = thuTuMoi[i];
+      thuTuMoi[i] = thuTuMoi[j];
+      thuTuMoi[j] = tam;
+
+      // Gán lại thu_tu = vị trí trong mảng; chỉ cập nhật dòng nào thực sự đổi
+      const capNhat = [];
+      thuTuMoi.forEach(function (anh, viTri) {
+        if (anh.thu_tu !== viTri) {
+          capNhat.push(db.from(TEN_BANG).update({ thu_tu: viTri }).eq("id", anh.id));
+        }
+      });
+
+      const ketQua = await Promise.all(capNhat);
+      const loi = ketQua.find(function (r) { return r.error; });
+      if (loi) { baoLoi("Không đổi được vị trí: " + loi.error.message); }
+      await taiDanhSach();
+    }
+
+    // ---------------- XOÁ ẢNH ----------------
+    async function xoaAnh(anh) {
+      if (!confirm("Xoá ảnh này? Hành động không thể hoàn tác.")) return;
+      xoaThongBao();
+      const db = layDb();
+
+      if (anh.duong_dan_storage) {
+        const { error: loiFile } = await db.storage.from(TEN_BUCKET).remove([anh.duong_dan_storage]);
+        if (loiFile) { baoLoi("Không xoá được file trên Storage: " + loiFile.message); return; }
+      }
+
+      const { error } = await db.from(TEN_BANG).delete().eq("id", anh.id);
+      if (error) { baoLoi("Không xoá được ảnh: " + error.message); return; }
+
+      baoOk("Đã xoá ảnh.");
+      await taiDanhSach();
+    }
+
+    // ---------------- KHỞI TẠO ----------------
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+      await taiDanhSach();
+    }
+    khoiTaoTrang();
+  </script>
+
+</body>
+
+</html>

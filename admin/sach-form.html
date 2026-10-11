@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/sach-form.html
+  MỤC ĐÍCH: Form thêm mới HOẶC sửa sách — dùng chung 1 file cho cả
+  2 chế độ (đọc query param "id" trên URL: có id -> chế độ sửa,
+  không có id -> chế độ thêm mới), phỏng theo cách
+  admin/bai-viet-form.html đang làm.
+
+  Ảnh bìa nhập dạng URL (dán link ảnh có sẵn), CHƯA hỗ trợ upload
+  file trực tiếp.
+
+  File PDF sách: hỗ trợ 2 cách - upload trực tiếp lên Supabase
+  Storage (bucket "file-pdf-sach") HOẶC dán URL PDF có sẵn ở nơi
+  khác, lưu chung vào cột "file_pdf" của bảng "sach".
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thêm / Sửa sách - Không gian văn hóa Hồ Chí Minh</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+  <header class="header-admin">
+    <h1 id="tieu-de-form">Thêm sách mới</h1>
+
+    <div class="cum-nut-header">
+      <a class="nut-quay-ve-web" href="quan-ly-sach.html">← Quay lại danh sách</a>
+      <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="noi-dung-admin">
+    <form id="form-sach">
+      <div class="nhom-truong-form">
+        <label for="ten_sach">Tên sách </label>
+        <input type="text" id="ten_sach" name="ten_sach" />
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="tac_gia">Tác giả</label>
+        <input type="text" id="tac_gia" name="tac_gia" />
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="anh_bia">URL ảnh bìa</label>
+        <input type="text" id="anh_bia" name="anh_bia" placeholder="https://..." />
+        <p class="ghi-chu-truong">Dán liên kết ảnh bìa sách (đã upload sẵn ở nơi khác).</p>
+        <img id="xem-truoc-anh-bia" class="xem-truoc-anh-bia-sach" alt="Xem trước ảnh bìa" />
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="mo_ta">Mô tả ngắn</label>
+        <textarea id="mo_ta" name="mo_ta"></textarea>
+      </div>
+
+      <div class="nhom-truong-form">
+        <label for="link_doc">URL đọc / tải sách</label>
+        <input type="text" id="link_doc" name="link_doc" placeholder="https://..." />
+        <p class="ghi-chu-truong">Nếu có, thẻ sách trên trang Thư viện sẽ bấm được, mở link này ở tab mới.</p>
+      </div>
+
+      <!-- ===== FILE PDF SÁCH (MỤC MỚI) ===== -->
+      <div class="nhom-truong-form">
+        <label>File PDF sách</label>
+
+        <div class="dong-checkbox" style="gap: 20px; margin-bottom: 10px;">
+          <span>
+            <input type="radio" name="kieu_file_pdf" id="kieu_pdf_upload" value="upload" checked />
+            <label for="kieu_pdf_upload" style="margin-bottom:0; font-weight:400;">Upload file PDF</label>
+          </span>
+          <span>
+            <input type="radio" name="kieu_file_pdf" id="kieu_pdf_url" value="url" />
+            <label for="kieu_pdf_url" style="margin-bottom:0; font-weight:400;">Dán URL PDF có sẵn</label>
+          </span>
+        </div>
+
+        <input type="file" id="file_pdf_upload" accept="application/pdf" />
+        <input
+          type="text"
+          id="file_pdf_url"
+          name="file_pdf_url"
+          placeholder="https://..."
+          style="display:none;"
+        />
+
+        <p class="ghi-chu-truong" id="ghi-chu-file-pdf">
+          Chọn file PDF từ máy để upload lên hệ thống.
+        </p>
+        <p id="thong-bao-upload-pdf" style="font-size:13px; color:#666; margin-top:4px;"></p>
+
+        <div id="file-pdf-hien-tai" style="display:none; margin-top:8px;">
+          <a id="lien-ket-file-pdf-hien-tai" href="#" target="_blank" rel="noopener noreferrer">
+            📄 Xem file PDF hiện tại
+          </a>
+          <button type="button" id="nut-xoa-file-pdf-hien-tai" class="nut-huy" style="margin-left:12px;">
+            Xoá file này
+          </button>
+        </div>
+      </div>
+      <!-- ===== HẾT MỤC FILE PDF SÁCH ===== -->
+
+      <div class="nhom-truong-form">
+        <label for="thu_tu">Thứ tự hiển thị</label>
+        <input type="number" id="thu_tu" name="thu_tu" value="0" step="1" />
+        <p class="ghi-chu-truong">Số càng nhỏ càng hiện trước trong carousel.</p>
+      </div>
+
+      <div class="nhom-truong-form">
+        <div class="dong-checkbox">
+          <input type="checkbox" id="da_xuat_ban" name="da_xuat_ban" checked />
+          <label for="da_xuat_ban" style="margin-bottom:0;">Hiện trên trang Thư viện</label>
+        </div>
+      </div>
+
+      <button type="submit" class="nut-luu-bai-viet" id="nut-luu">Lưu sách</button>
+      <a class="nut-huy" href="quan-ly-sach.html">Huỷ</a>
+
+      <div id="thong-bao-ket-qua"></div>
+    </form>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/sach.js"></script>
+
+  <script>
+    // ID lấy từ query string (?id=...) — có giá trị nghĩa là đang SỬA,
+    // null nghĩa là đang THÊM MỚI
+    const thamSo = new URLSearchParams(window.location.search);
+    const ID_SACH_DANG_SUA = thamSo.get("id");
+
+    // Lưu lại URL file PDF ĐANG CÓ SẴN trên database (chế độ sửa),
+    // để khi admin không chọn file mới / không đổi URL, ta biết giữ
+    // nguyên giá trị cũ này khi lưu, thay vì vô tình xoá mất
+    let FILE_PDF_HIEN_TAI = null;
+
+    // ------------------------------------------------------------
+    // HÀM: khoiTaoTrang
+    // MỤC ĐÍCH: Bảo vệ trang, gắn sự kiện xem-trước-ảnh + gửi form,
+    // và nếu đang ở chế độ SỬA thì tải sẵn dữ liệu sách lên form
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+
+      document.getElementById("anh_bia").addEventListener("input", capNhatXemTruocAnh);
+      document.getElementById("form-sach").addEventListener("submit", xuLyLuuSach);
+
+      document
+        .querySelectorAll('input[name="kieu_file_pdf"]')
+        .forEach((oRadio) => oRadio.addEventListener("change", chuyenKieuFilePdf));
+
+      document
+        .getElementById("nut-xoa-file-pdf-hien-tai")
+        .addEventListener("click", xuLyXoaFilePdfHienTai);
+
+      if (ID_SACH_DANG_SUA) {
+        document.getElementById("tieu-de-form").textContent = "Sửa sách";
+        await doDuLieuLenForm();
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: capNhatXemTruocAnh
+    // MỤC ĐÍCH: Mỗi khi admin gõ/dán URL ảnh bìa, hiện ảnh xem trước
+    // ngay bên dưới ô nhập; nếu ô trống thì ẩn ảnh xem trước đi
+    // ------------------------------------------------------------
+    function capNhatXemTruocAnh() {
+      const url = document.getElementById("anh_bia").value.trim();
+      const oAnh = document.getElementById("xem-truoc-anh-bia");
+
+      if (url) {
+        oAnh.src = url;
+        oAnh.style.display = "block";
+      } else {
+        oAnh.style.display = "none";
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: chuyenKieuFilePdf
+    // MỤC ĐÍCH: Đổi qua lại giữa 2 kiểu nhập file PDF (upload / dán
+    // URL) khi admin bấm chọn radio tương ứng — ẩn/hiện đúng ô nhập
+    // và đổi ghi chú hướng dẫn cho khớp
+    // ------------------------------------------------------------
+    function chuyenKieuFilePdf() {
+      const dangChonUpload = document.getElementById("kieu_pdf_upload").checked;
+      const oOUpload = document.getElementById("file_pdf_upload");
+      const oOUrl = document.getElementById("file_pdf_url");
+      const oGhiChu = document.getElementById("ghi-chu-file-pdf");
+
+      oOUpload.style.display = dangChonUpload ? "block" : "none";
+      oOUrl.style.display = dangChonUpload ? "none" : "block";
+
+      oGhiChu.textContent = dangChonUpload
+        ? "Chọn file PDF từ máy để upload lên hệ thống."
+        : "Dán liên kết file PDF đã có sẵn ở nơi khác.";
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyXoaFilePdfHienTai
+    // MỤC ĐÍCH: (Chế độ SỬA) Bấm "Xoá file này" sẽ bỏ file PDF đang
+    // gắn với sách — chỉ xoá đường dẫn trong DB khi bấm Lưu, KHÔNG
+    // xoá file thật trên Storage (để tránh phức tạp/rủi ro xoá nhầm)
+    // ------------------------------------------------------------
+    function xuLyXoaFilePdfHienTai() {
+      const dongY = confirm("Bỏ file PDF hiện tại khỏi sách này?");
+      if (!dongY) return;
+
+      FILE_PDF_HIEN_TAI = null;
+      document.getElementById("file-pdf-hien-tai").style.display = "none";
+      document.getElementById("file_pdf_url").value = "";
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: doDuLieuLenForm
+    // MỤC ĐÍCH: (Chế độ SỬA) Gọi layMotSach() lấy dữ liệu sách hiện
+    // có, đổ vào từng ô input tương ứng trên form
+    // ------------------------------------------------------------
+    async function doDuLieuLenForm() {
+      const ketQua = await layMotSach(ID_SACH_DANG_SUA);
+
+      if (!ketQua.thanhCong || !ketQua.sach) {
+        alert("Không tìm thấy sách này.");
+        window.location.href = "quan-ly-sach.html";
+        return;
+      }
+
+      const sach = ketQua.sach;
+
+      document.getElementById("ten_sach").value = sach.ten_sach || "";
+      document.getElementById("tac_gia").value = sach.tac_gia || "";
+      document.getElementById("anh_bia").value = sach.anh_bia || "";
+      document.getElementById("mo_ta").value = sach.mo_ta || "";
+      document.getElementById("link_doc").value = sach.link_doc || "";
+      document.getElementById("thu_tu").value = sach.thu_tu ?? 0;
+      document.getElementById("da_xuat_ban").checked = !!sach.da_xuat_ban;
+
+      if (sach.file_pdf) {
+        FILE_PDF_HIEN_TAI = sach.file_pdf;
+
+        document.getElementById("kieu_pdf_url").checked = true;
+        document.getElementById("file_pdf_url").value = sach.file_pdf;
+        chuyenKieuFilePdf();
+
+        document.getElementById("lien-ket-file-pdf-hien-tai").href = sach.file_pdf;
+        document.getElementById("file-pdf-hien-tai").style.display = "block";
+      }
+
+      capNhatXemTruocAnh();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyLuuSach
+    // MỤC ĐÍCH: Chặn hành vi submit mặc định của form (tránh tải lại
+    // trang), gom dữ liệu từ các ô input (kể cả upload/URL file PDF),
+    // gọi luuSach() (sach.js), rồi quay về trang danh sách nếu thành công
+    // ------------------------------------------------------------
+    async function xuLyLuuSach(su_kien) {
+      su_kien.preventDefault();
+
+      const oNutLuu = document.getElementById("nut-luu");
+      const oThongBao = document.getElementById("thong-bao-ket-qua");
+      const oThongBaoUpload = document.getElementById("thong-bao-upload-pdf");
+
+      oNutLuu.disabled = true;
+      oNutLuu.textContent = "Đang lưu...";
+      oThongBaoUpload.textContent = "";
+
+      // --- Xử lý file PDF: upload trực tiếp hoặc dùng URL đã dán ---
+      const dangChonUpload = document.getElementById("kieu_pdf_upload").checked;
+      let file_pdf = null;
+
+      if (dangChonUpload) {
+        const fileDaChon = document.getElementById("file_pdf_upload").files[0];
+
+        if (fileDaChon) {
+          oThongBaoUpload.textContent = "Đang upload file PDF, vui lòng chờ...";
+
+          const ketQuaUpload = await uploadFilePdfSach(fileDaChon);
+
+          if (!ketQuaUpload.thanhCong) {
+            oThongBaoUpload.textContent = "";
+            oThongBao.innerHTML = `<div class="thong-bao-ket-qua that-bai">Upload file PDF thất bại: ${ketQuaUpload.loi}</div>`;
+            oNutLuu.disabled = false;
+            oNutLuu.textContent = "Lưu sách";
+            return;
+          }
+
+          file_pdf = ketQuaUpload.url;
+          oThongBaoUpload.textContent = "Upload file PDF thành công.";
+        } else {
+          // Không chọn file mới -> giữ nguyên file cũ (nếu có, kể cả
+          // đã bị bấm "Xoá file này" thì FILE_PDF_HIEN_TAI đã là null)
+          file_pdf = FILE_PDF_HIEN_TAI;
+        }
+      } else {
+        file_pdf = document.getElementById("file_pdf_url").value.trim() || null;
+      }
+
+      const duLieu = {
+        ten_sach: document.getElementById("ten_sach").value.trim(),
+        tac_gia: document.getElementById("tac_gia").value.trim() || null,
+        anh_bia: document.getElementById("anh_bia").value.trim() || null,
+        mo_ta: document.getElementById("mo_ta").value.trim() || null,
+        link_doc: document.getElementById("link_doc").value.trim() || null,
+        file_pdf: file_pdf,
+        thu_tu: parseInt(document.getElementById("thu_tu").value, 10) || 0,
+        da_xuat_ban: document.getElementById("da_xuat_ban").checked,
+      };
+
+      const ketQua = await luuSach(duLieu, ID_SACH_DANG_SUA);
+
+      oNutLuu.disabled = false;
+      oNutLuu.textContent = "Lưu sách";
+
+      if (!ketQua.thanhCong) {
+        oThongBao.innerHTML = `<div class="thong-bao-ket-qua that-bai">Lưu thất bại: ${ketQua.loi}</div>`;
+        return;
+      }
+
+      window.location.href = "quan-ly-sach.html";
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dựng phòng 3D 4 góc</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pannellum/2.5.6/pannellum.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; display: flex; height: 100vh; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+  aside { width: 350px; padding: 14px; overflow-y: auto; background: #1c1c1c; }
+  #viewer { flex: 1; }
+  h3 { margin: 0 0 10px; }
+  h4 { margin: 14px 0 4px; font-size: 14px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tabs button { flex: 1; padding: 8px 0; }
+  .tabs button.on { background: #c0392b; color: #fff; border-color: #c0392b; }
+  .row { margin-bottom: 8px; }
+  .row label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 2px; }
+  .row input[type=range] { width: 100%; }
+  .chk { display: block; font-size: 13px; margin: 6px 0; }
+  button { padding: 7px 10px; margin: 3px 3px 3px 0; cursor: pointer; }
+  button.armed { outline: 2px dashed #f1c40f; }
+  input[type=text] { width: 100%; padding: 6px; margin-bottom: 6px; }
+  #info { font-size: 12px; color: #9ab; margin: 6px 0; }
+  textarea { width: 100%; height: 160px; background: #000; color: #0f0; font: 12px monospace; }
+  .pg-arrow { width: 46px; height: 46px; border-radius: 50%; background: rgba(192,57,43,.92); color: #fff;
+    font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+    text-align: center; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+</style>
+</head>
+<body>
+<aside>
+  <h3>Dựng phòng 3D – 4 góc</h3>
+  <div class="tabs" id="tabs"></div>
+
+  <input type="file" id="file" accept="image/*">
+  <input type="text" id="url" placeholder="hoặc dán link ảnh (Supabase...)">
+  <button id="btnUrl">Tải từ link</button>
+  <div id="info"></div>
+
+  <label class="chk"><input type="checkbox" id="lock" checked> Khóa tỉ lệ ảnh (chống méo): vaov = haov × cao / rộng</label>
+  <div id="sliders"></div>
+  <button id="btnGrab">Lấy góc nhìn hiện tại làm mặc định</button>
+
+  <h4>Mũi tên chuyển góc</h4>
+  <div id="arrowBtns"></div>
+  <button id="btnAuto">Tự chia đều 3 mũi tên</button>
+  <button id="btnClear">Xóa mũi tên góc này</button>
+  <div id="hint" style="font-size:12px;color:#9ab"></div>
+
+  <h4>Kết quả (JSON cả 4 góc)</h4>
+  <button id="btnCopy">Sao chép JSON</button>
+  <textarea id="out" readonly></textarea>
+</aside>
+<div id="viewer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pannellum/2.5.6/pannellum.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+
+// [khóa, nhãn, min, max, step]
+const FIELDS = [
+  ['haov',    'Góc ngang ảnh (haov, độ)',        20, 360, 1],
+  ['vaov',    'Góc dọc ảnh (vaov, độ)',          10, 180, 0.5],
+  ['vOffset', 'Lệch dọc (vOffset, độ)',         -60,  60, 1],
+  ['yaw',     'Hướng nhìn ban đầu (yaw)',      -180, 180, 1],
+  ['pitch',   'Ngẩng/cúi ban đầu (pitch)',      -90,  90, 1],
+  ['hfov',    'Zoom ban đầu (hfov)',             30, 120, 1],
+  ['crop',    'Cắt viền chống vùng đen (%)',      0,  10, 0.5]
+];
+
+const G = [0, 1, 2, 3].map(() => ({
+  src: '', w: 0, h: 0,
+  haov: 150, vaov: 60, vOffset: 0, yaw: 0, pitch: 0, hfov: 90, crop: 2,
+  arrows: []                      // {to, yaw, pitch}
+}));
+let cur = 0, viewer = null, armed = null, timer = null, downXY = null;
+
+/* ---------- Giao diện ---------- */
+[0, 1, 2, 3].forEach(i => {
+  const b = document.createElement('button');
+  b.textContent = 'Góc ' + (i + 1);
+  b.onclick = () => go(i);
+  $('tabs').appendChild(b);
+});
+FIELDS.forEach(([id, label, min, max, step]) => {
+  const d = document.createElement('div');
+  d.className = 'row';
+  d.innerHTML = `<label><span>${label}</span><b id="v_${id}"></b></label>` +
+                `<input type="range" id="${id}" min="${min}" max="${max}" step="${step}">`;
+  $('sliders').appendChild(d);
+  $(id).addEventListener('input', () => {
+    G[cur][id] = parseFloat($(id).value);
+    clearTimeout(timer); timer = setTimeout(update, 120);
+  });
+});
+$('lock').addEventListener('change', update);
+
+function syncUI() {
+  const g = G[cur];
+  FIELDS.forEach(([id]) => { $(id).value = g[id]; $('v_' + id).textContent = g[id]; });
+  $('vaov').disabled = $('lock').checked;
+  $('info').textContent = g.src ? `${g.w}×${g.h}px · tỉ lệ ${(g.w / g.h).toFixed(2)}:1` : 'Chưa có ảnh cho góc này';
+  [...$('tabs').children].forEach((b, i) => b.classList.toggle('on', i === cur));
+
+  $('arrowBtns').innerHTML = '';
+  [0, 1, 2, 3].filter(j => j !== cur).forEach(j => {
+    const b = document.createElement('button');
+    b.textContent = 'Đặt mũi tên → Góc ' + (j + 1) + (g.arrows.some(a => a.to === j) ? ' ✓' : '');
+    b.classList.toggle('armed', armed === j);
+    b.onclick = () => { armed = (armed === j ? null : j); syncUI(); };
+    $('arrowBtns').appendChild(b);
+  });
+  $('hint').textContent = armed === null ? 'Bấm nút rồi bấm vào vị trí trên ảnh để đặt mũi tên.'
+                                         : 'Bấm vào vị trí trên ảnh để đặt mũi tên → Góc ' + (armed + 1);
+}
+
+/* ---------- Cấu hình Pannellum ---------- */
+function cfg(g) {
+  const c = {
+    type: 'equirectangular', panorama: g.src, autoLoad: true, showControls: true,
+    haov: g.haov, vaov: g.vaov, vOffset: g.vOffset, yaw: g.yaw, pitch: g.pitch, hfov: g.hfov
+  };
+  const k = g.crop / 100;
+  if (g.haov < 360) {
+    c.minYaw = +(-g.haov * (0.5 - k)).toFixed(2);
+    c.maxYaw = +( g.haov * (0.5 - k)).toFixed(2);
+  }
+  if (g.vaov < 180) {
+    c.minPitch = Math.max(-90, +(g.vOffset - g.vaov * (0.5 - k)).toFixed(2));
+    c.maxPitch = Math.min( 90, +(g.vOffset + g.vaov * (0.5 - k)).toFixed(2));
+  }
+  c.hotSpots = g.arrows.filter(a => G[a.to].src).map(a => ({
+    type: 'custom', pitch: a.pitch, yaw: a.yaw, cssClass: 'pg-arrow',
+    createTooltipFunc: (div, label) => { div.textContent = label; },
+    createTooltipArgs: 'Góc ' + (a.to + 1),
+    clickHandlerFunc: () => go(a.to)
+  }));
+  return c;
+}
+
+function build() {
+  if (viewer) { viewer.destroy(); viewer = null; }
+  const g = G[cur];
+  if (g.src) viewer = pannellum.viewer('viewer', cfg(g));
+  renderOut();
+}
+
+function update() {
+  const g = G[cur];
+  if ($('lock').checked && g.w) g.vaov = Math.min(180, Math.round(g.haov * g.h / g.w * 10) / 10);
+  syncUI(); build();
+}
+
+function go(i) { cur = i; armed = null; update(); }
+
+/* ---------- Nạp ảnh ---------- */
+function load(url) {
+  const im = new Image();
+  im.crossOrigin = 'anonymous';
+  im.onload = () => {
+    const g = G[cur];
+    g.src = url; g.w = im.naturalWidth; g.h = im.naturalHeight;
+    if (Math.abs(g.w / g.h - 2) < 0.03) { g.haov = 360; g.vaov = 180; g.vOffset = 0; g.crop = 0; }
+    update();
+  };
+  im.onerror = () => alert('Không tải được ảnh (kiểm tra link / CORS).');
+  im.src = url;
+}
+$('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) load(URL.createObjectURL(f)); });
+$('btnUrl').addEventListener('click', () => { const u = $('url').value.trim(); if (u) load(u); });
+
+/* ---------- Mũi tên ---------- */
+$('viewer').addEventListener('mousedown', e => { downXY = [e.clientX, e.clientY]; });
+$('viewer').addEventListener('click', e => {
+  if (armed === null || !viewer) return;
+  if (e.target.closest('.pg-arrow')) return;
+  if (downXY && Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]) > 5) return;   // đang kéo xoay
+  const [pitch, yaw] = viewer.mouseEventToCoords(e);
+  const g = G[cur];
+  g.arrows = g.arrows.filter(a => a.to !== armed);
+  g.arrows.push({ to: armed, yaw: Math.round(yaw * 10) / 10, pitch: Math.round(pitch * 10) / 10 });
+  armed = null; syncUI(); build();
+});
+$('btnAuto').addEventListener('click', () => {
+  const g = G[cur], others = [0, 1, 2, 3].filter(i => i !== cur);
+  const span = g.haov * (1 - 2 * g.crop / 100);
+  g.arrows = others.map((to, n) => ({
+    to,
+    yaw: Math.round((-span / 2 + span * (n + 1) / (others.length + 1)) * 10) / 10,
+    pitch: Math.round((g.vOffset - g.vaov * 0.2) * 10) / 10
+  }));
+  syncUI(); build();
+});
+$('btnClear').addEventListener('click', () => { G[cur].arrows = []; armed = null; syncUI(); build(); });
+
+$('btnGrab').addEventListener('click', () => {
+  if (!viewer) return;
+  const g = G[cur];
+  g.yaw = Math.round(viewer.getYaw()); g.pitch = Math.round(viewer.getPitch()); g.hfov = Math.round(viewer.getHfov());
+  syncUI(); build();
+});
+
+/* ---------- Xuất JSON ---------- */
+function renderOut() {
+  const out = {};
+  G.forEach((g, i) => {
+    const c = cfg(g);
+    ['type', 'panorama', 'autoLoad', 'showControls', 'hotSpots'].forEach(k => delete c[k]);
+    c.arrows = g.arrows;
+    out['goc' + (i + 1)] = c;
+  });
+  $('out').value = JSON.stringify(out, null, 1);
+}
+$('btnCopy').addEventListener('click', () => navigator.clipboard.writeText($('out').value));
+
+update();
+</script>
+</body>
+</html>

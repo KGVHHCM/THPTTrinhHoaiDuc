@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/quan-ly-tu-lieu.html
+  MỤC ĐÍCH: Trang quản lý RIÊNG cho mục "Tư liệu & Ký ức" — gồm 3
+  loại: hồi ức nhân chứng (hoi_uc), bài nghiên cứu (nghien_cuu),
+  kỷ niệm & ngày lễ (ky_niem). KHÔNG hiển thị loại "tin_tuc" (đã có
+  trang quan-ly-bai-viet.html riêng cho loại đó).
+
+  Cấu trúc mô phỏng lại quan-ly-bai-viet.html cũ, nhưng bộ lọc chỉ
+  còn 3 lựa chọn (+ "Tất cả"), và nút "Thêm mới" trỏ sang
+  tu-lieu-form.html (form riêng, không phải bai-viet-form.html).
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý Tư liệu & Ký ức - Quản trị</title>
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+  <header class="header-admin">
+    <a class="lien-ket-tieu-de-admin" href="dashboard.html">
+      <h1>Quản lý Tư liệu &amp; Ký ức</h1>
+    </a>
+    <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+  </header>
+
+  <main class="noi-dung-admin">
+
+    <div class="thanh-cong-cu">
+      <select id="loc-theo-loai" onchange="taiLaiDanhSach()">
+        <option value="">Tất cả tư liệu</option>
+        <option value="hoi_uc">Hồi ức nhân chứng</option>
+        <option value="nghien_cuu">Bài nghiên cứu</option>
+        <option value="ky_niem">Kỷ niệm &amp; Ngày lễ</option>
+      </select>
+
+      <a href="tu-lieu-form.html" class="nut-them-moi">+ Thêm tư liệu mới</a>
+    </div>
+
+    <table class="bang-bai-viet">
+      <thead>
+        <tr>
+          <th>Tiêu đề</th>
+          <th>Loại</th>
+          <th>Trạng thái</th>
+          <th>Ngày tạo</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="than-bang-bai-viet">
+      </tbody>
+    </table>
+
+    <p class="thong-bao-rong" id="thong-bao-rong" style="display: none">
+      Chưa có tư liệu nào. Bấm "+ Thêm tư liệu mới" để bắt đầu.
+    </p>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/posts.js"></script>
+
+  <script>
+    // Chỉ 3 loại thuộc nhóm "Tư liệu & Ký ức", KHÔNG bao gồm tin_tuc
+    const LOAI_TU_LIEU_HOP_LE = ["hoi_uc", "nghien_cuu", "ky_niem"];
+
+    const NHAN_LOAI_TU_LIEU = {
+      hoi_uc: "Hồi ức nhân chứng",
+      nghien_cuu: "Bài nghiên cứu",
+      ky_niem: "Kỷ niệm & Ngày lễ",
+    };
+
+    function thoatHtml(chuoi) {
+      const oDivAo = document.createElement("div");
+      oDivAo.textContent = chuoi == null ? "" : String(chuoi);
+      return oDivAo.innerHTML;
+    }
+
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+      await taiLaiDanhSach();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiLaiDanhSach
+    // MỤC ĐÍCH: Nếu admin chọn đúng 1 loại cụ thể -> gọi thẳng
+    // layDanhSachBaiViet() với loại đó. Nếu chọn "Tất cả tư liệu"
+    // (value="") -> KHÔNG được gọi layDanhSachBaiViet(null,...) vì
+    // như vậy sẽ lấy nhầm luôn cả loại "tin_tuc" -> phải gọi riêng
+    // cho từng loại trong 3 loại tư liệu rồi gộp lại (giống cách
+    // tu-lieu-ky-uc.html bên trang public xử lý tab "Tất cả").
+    // ------------------------------------------------------------
+    async function taiLaiDanhSach() {
+      const oLoc = document.getElementById("loc-theo-loai");
+      const loaiDangLoc = oLoc.value;
+
+      let danhSachBaiViet;
+
+      if (loaiDangLoc) {
+        const ketQua = await layDanhSachBaiViet(loaiDangLoc, false);
+        if (!ketQua.thanhCong) {
+          alert("Không tải được danh sách: " + ketQua.loi);
+          return;
+        }
+        danhSachBaiViet = ketQua.duLieu;
+      } else {
+        const ketQuaMang = await Promise.all(
+          LOAI_TU_LIEU_HOP_LE.map(function (loai) {
+            return layDanhSachBaiViet(loai, false);
+          })
+        );
+
+        const coLoiXayRa = ketQuaMang.some(function (kq) {
+          return !kq.thanhCong;
+        });
+
+        if (coLoiXayRa) {
+          alert("Không tải được danh sách tư liệu.");
+          return;
+        }
+
+        danhSachBaiViet = ketQuaMang.flatMap(function (kq) {
+          return kq.duLieu;
+        });
+
+        danhSachBaiViet.sort(function (a, b) {
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
+      }
+
+      veLaiBangBaiViet(danhSachBaiViet);
+    }
+
+    function veLaiBangBaiViet(danhSachBaiViet) {
+      const oThan = document.getElementById("than-bang-bai-viet");
+      const oThongBaoRong = document.getElementById("thong-bao-rong");
+
+      oThan.innerHTML = "";
+
+      if (danhSachBaiViet.length === 0) {
+        oThongBaoRong.style.display = "block";
+        return;
+      }
+      oThongBaoRong.style.display = "none";
+
+      danhSachBaiViet.forEach(function (bv) {
+        const oDong = document.createElement("tr");
+
+        const ngayTao = new Date(bv.created_at).toLocaleDateString("vi-VN");
+        const lopTrangThai = bv.da_xuat_ban ? "da-xuat-ban" : "chua-xuat-ban";
+        const chuTrangThai = bv.da_xuat_ban ? "Đã xuất bản" : "Bản nháp";
+        const nhanLoai = NHAN_LOAI_TU_LIEU[bv.loai_bai_viet] || bv.loai_bai_viet;
+        const tieuDeAnToan = thoatHtml(bv.tieu_de);
+
+        oDong.innerHTML = `
+          <td>${tieuDeAnToan}</td>
+          <td><span class="nhan-loai">${thoatHtml(nhanLoai)}</span></td>
+          <td><span class="nhan-trang-thai ${lopTrangThai}">${chuTrangThai}</span></td>
+          <td>${ngayTao}</td>
+          <td>
+            <div class="nhom-nut-hanh-dong">
+              <a class="nut-sua" href="tu-lieu-form.html?id=${encodeURIComponent(bv.id)}">Sửa</a>
+              <button
+                class="nut-xoa"
+                type="button"
+                data-id="${thoatHtml(bv.id)}"
+                data-tieu-de="${tieuDeAnToan}"
+              >Xoá</button>
+            </div>
+          </td>
+        `;
+
+        const oNutXoa = oDong.querySelector(".nut-xoa");
+        oNutXoa.addEventListener("click", function () {
+          xuLyXoaBaiViet(oNutXoa.dataset.id, oNutXoa.dataset.tieuDe);
+        });
+
+        oThan.appendChild(oDong);
+      });
+    }
+
+    async function xuLyXoaBaiViet(id, tieuDe) {
+      const xacNhan = confirm('Bạn có chắc muốn xoá tư liệu "' + tieuDe + '"?\nHành động này không thể hoàn tác.');
+
+      if (!xacNhan) {
+        return;
+      }
+
+      const ketQua = await xoaBaiViet(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Xoá thất bại: " + ketQua.loi);
+        return;
+      }
+
+      await taiLaiDanhSach();
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<!--
+  FILE: admin/quan-ly-tour.html
+  MỤC ĐÍCH: Quản lý các SCENE (ảnh 360° / "điểm đứng" trong không
+  gian trưng bày) VÀ các HOTSPOT (điểm nhấn đặt trên từng ảnh 360°,
+  bấm vào hiện chú thích hoặc chuyển sang scene khác) dùng cho trang
+  public khong-gian-3d.html.
+
+  CẬP NHẬT SO VỚI PHIÊN BẢN TRƯỚC (đã xong Phần 1 + 2 — quản lý
+  scene): bổ sung PHẦN 3 — quản lý hotspot, được đặt ngay bên dưới
+  khung xem trước ảnh 360° ở cột phải.
+
+  CÁCH ĐẶT 1 HOTSPOT MỚI:
+    1. Chọn 1 scene ở cột trái để mở khung xem trước
+    2. Bấm nút "+ Thêm hotspot mới" (nằm dưới khung xem trước)
+    3. Bấm vào đúng vị trí muốn đặt hotspot NGAY TRÊN ảnh 360° —
+       trang tự tính toạ độ (pitch/yaw) tại điểm vừa bấm bằng hàm
+       mouseEventToCoords() có sẵn của thư viện Pannellum.js
+    4. Điền tiêu đề + chọn loại hotspot (hiện thông tin / chuyển
+       sang scene khác) trong form hiện ra, rồi bấm Lưu
+
+  BỐ CỤC TRANG: 1 trang duy nhất (không có form riêng như bai-viet):
+    - Cột trái: danh sách toàn bộ scene, mỗi scene có nút Xem trước /
+      Sửa / Xoá / Đặt làm scene bắt đầu (nếu chưa phải scene bắt đầu)
+    - Cột phải: LUÂN PHIÊN hiển thị 1 trong 2 nội dung, tuỳ hành động
+      admin vừa bấm:
+        (a) Khung xem trước ảnh 360° (dùng Pannellum.js) của scene
+            đang được chọn ở cột trái, kèm khu vực quản lý hotspot
+            của đúng scene đó ngay bên dưới
+        (b) Form thêm mới / sửa thông tin 1 scene
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý không gian 3D - Quản trị</title>
+
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+  <link rel="stylesheet" href="../assets/css/tour-admin.css" />
+
+  <!-- CSS của thư viện Pannellum.js, cần thiết để khung xem trước
+       360° hiển thị đúng (nút điều khiển, con trỏ kéo xoay...) -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"
+  />
+</head>
+<body>
+
+  <header class="header-admin">
+    <h1>Quản lý không gian 2D (Tour 360°)</h1>
+    <button class="nut-dang-xuat" onclick="dangXuat()">Đăng xuất</button>
+  </header>
+
+  <main class="noi-dung-admin">
+    <div class="bo-cuc-tour">
+
+      <!-- ====================================================
+           CỘT TRÁI: danh sách scene
+           ==================================================== -->
+      <aside class="cot-danh-sach-scene">
+        <div class="thanh-cong-cu">
+          <button type="button" class="nut-them-moi" onclick="moFormThemScene()">
+            + Thêm scene mới
+          </button>
+        </div>
+
+        <!-- JS sẽ chèn các <li class="muc-scene"> vào đây sau khi
+             tải xong danh sách scene từ database -->
+        <ul class="danh-sach-scene" id="danh-sach-scene">
+          <li class="thong-bao-rong" style="padding: 1rem">Đang tải...</li>
+        </ul>
+      </aside>
+
+      <!-- ====================================================
+           CỘT PHẢI: khung xem trước (+ khu vực hotspot) HOẶC form
+           thêm/sửa scene. JS sẽ thay đổi TOÀN BỘ nội dung bên trong
+           div này tuỳ theo admin đang chọn xem 1 scene hay đang
+           thêm/sửa
+           ==================================================== -->
+      <section class="cot-noi-dung-scene" id="cot-noi-dung-scene">
+        <p class="thong-bao-rong">
+          Chọn 1 scene ở danh sách bên trái để xem trước, hoặc bấm
+          "+ Thêm scene mới" để tạo scene đầu tiên.
+        </p>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Thứ tự nhúng JS bắt buộc: thư viện Supabase JS -> supabase-client.js
+       -> auth.js (baoVeTrangAdmin, dangXuat) -> tour-admin.js (CRUD
+       scene + hotspot) -> thư viện Pannellum.js (dựng khung xem
+       trước 360° và đọc toạ độ khi bấm lên ảnh) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/tour-admin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // BIẾN TRẠNG THÁI CỦA TRANG — PHẦN SCENE (giữ nguyên như trước)
+    // ------------------------------------------------------------
+
+    // danhSachSceneHienTai: cache lại danh sách scene vừa tải từ
+    // database, dùng để tra cứu nhanh thông tin 1 scene (VD: khi vẽ
+    // lại khung xem trước) mà KHÔNG cần gọi lại API mỗi lần
+    let danhSachSceneHienTai = [];
+
+    // idSceneDangXemTruoc: id của scene đang hiển thị ở khung xem
+    // trước cột phải, giữ null nếu cột phải đang hiện form hoặc
+    // chưa chọn scene nào
+    let idSceneDangXemTruoc = null;
+
+    // idSceneDangSua: id của scene đang được sửa (chế độ Sửa), giữ
+    // null nếu đang ở chế độ Thêm mới hoặc không mở form nào cả
+    let idSceneDangSua = null;
+
+    // urlAnh360HienTai: URL ảnh 360° ĐÃ CÓ SẴN của scene đang sửa
+    // (chỉ có giá trị ở chế độ Sửa một scene đã từng có ảnh)
+    let urlAnh360HienTai = null;
+
+    // fileAnh360Moi: đối tượng File ảnh 360° MỚI admin vừa chọn
+    // trong form (chưa upload lên Storage), giữ null nếu chưa chọn
+    let fileAnh360Moi = null;
+
+    // trinhXemPannellum: instance trình xem 360° hiện tại (Pannellum
+    // trả về khi khởi tạo). Cần LƯU LẠI để gọi .destroy() trước khi
+    // tạo 1 instance mới, nếu không sẽ bị chồng nhiều trình xem lên
+    // nhau mỗi lần admin chọn xem 1 scene khác
+    let trinhXemPannellum = null;
+
+    // ------------------------------------------------------------
+    // BIẾN TRẠNG THÁI CỦA TRANG — PHẦN HOTSPOT (mới bổ sung)
+    // ------------------------------------------------------------
+
+    // danhSachHotspotHienTai: cache danh sách hotspot của ĐÚNG scene
+    // đang xem trước ở cột phải (tải lại mỗi khi đổi sang scene khác
+    // hoặc sau khi thêm/sửa/xoá 1 hotspot)
+    let danhSachHotspotHienTai = [];
+
+    // dangBatCheDoDatHotspot: true khi admin vừa bấm "+ Thêm hotspot
+    // mới" (hoặc "Đặt lại vị trí" trong form Sửa) và đang chờ bấm 1
+    // điểm bất kỳ trên ảnh 360° để lấy toạ độ
+    let dangBatCheDoDatHotspot = false;
+
+    // idHotspotDangSua: id của hotspot đang được sửa (chế độ Sửa),
+    // giữ null nếu đang ở chế độ Thêm mới hoặc không mở form nào
+    let idHotspotDangSua = null;
+
+    // toaDoDangChon: object { pitch, yaw } — toạ độ hiện đang được
+    // dùng cho form hotspot đang mở (lấy được từ cú bấm lên ảnh, khi
+    // Thêm mới hoặc khi bấm "Đặt lại vị trí"; hoặc lấy từ dữ liệu có
+    // sẵn của hotspot, khi mở form Sửa mà chưa đổi vị trí)
+    let toaDoDangChon = null;
+
+    
+    // fileAnhInfoMoi: đối tượng File ảnh cận cảnh MỚI admin vừa chọn
+    // cho hotspot loại "info" (chưa upload lên Storage), giữ null
+    // nếu chưa chọn file nào
+    let fileAnhInfoMoi = null;
+
+    // urlAnhInfoHienTai: URL ảnh cận cảnh ĐÃ CÓ SẴN của hotspot đang
+    // sửa (chỉ có giá trị ở chế độ Sửa 1 hotspot đã từng có ảnh)
+    let urlAnhInfoHienTai = null;
+
+    // ------------------------------------------------------------
+    // HÀM: thoatHtml
+    // MỤC ĐÍCH: Escape ký tự đặc biệt của HTML trước khi chèn dữ
+    // liệu (tên scene, mô tả, tiêu đề hotspot...) vào innerHTML,
+    // tránh vỡ layout hoặc vỡ thuộc tính HTML nếu chẳng may nội dung
+    // chứa ký tự <, >, ", ' (giống hệt cách đã áp dụng ở
+    // admin/quan-ly-bai-viet.html)
+    // ------------------------------------------------------------
+    function thoatHtml(chuoi) {
+      const oDivAo = document.createElement("div");
+      oDivAo.textContent = chuoi == null ? "" : String(chuoi);
+      return oDivAo.innerHTML;
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: khoiTaoTrang
+    // MỤC ĐÍCH: Chạy khi trang vừa tải xong — kiểm tra đăng nhập,
+    // rồi tải danh sách scene lần đầu tiên
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      await baoVeTrangAdmin();
+      await taiVaVeDanhSachScene();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiVaVeDanhSachScene
+    // MỤC ĐÍCH: Gọi layDanhSachScene() (tour-admin.js) để lấy dữ liệu
+    // mới nhất, lưu vào cache danhSachSceneHienTai, rồi vẽ lại danh
+    // sách ở cột trái. Được gọi lại sau MỌI thao tác làm thay đổi dữ
+    // liệu scene (thêm, sửa, xoá, đặt làm scene bắt đầu).
+    // ------------------------------------------------------------
+    async function taiVaVeDanhSachScene() {
+      const oDanhSach = document.getElementById("danh-sach-scene");
+      const ketQua = await layDanhSachScene();
+
+      if (!ketQua.thanhCong) {
+        oDanhSach.innerHTML =
+          '<li class="thong-bao-rong" style="padding: 1rem">Không tải được danh sách scene: ' +
+          thoatHtml(ketQua.loi) +
+          "</li>";
+        return;
+      }
+
+      danhSachSceneHienTai = ketQua.duLieu;
+      veLaiDanhSachScene();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veLaiDanhSachScene
+    // MỤC ĐÍCH: Vẽ lại toàn bộ danh sách scene ở cột trái, dựa vào
+    // dữ liệu đang có sẵn trong cache danhSachSceneHienTai (không
+    // gọi lại API). Mỗi scene có: số thứ tự, tên, nhãn "Scene bắt
+    // đầu" (nếu đúng scene đó), và 3 nút hành động.
+    // ------------------------------------------------------------
+    function veLaiDanhSachScene() {
+      const oDanhSach = document.getElementById("danh-sach-scene");
+
+      if (danhSachSceneHienTai.length === 0) {
+        oDanhSach.innerHTML =
+          '<li class="thong-bao-rong" style="padding: 1rem">Chưa có scene nào. Bấm "+ Thêm scene mới" để bắt đầu.</li>';
+        return;
+      }
+
+      oDanhSach.innerHTML = "";
+
+      danhSachSceneHienTai.forEach(function (scene) {
+        const oMuc = document.createElement("li");
+        oMuc.className = "muc-scene";
+        // Tô sáng scene ĐANG được xem trước ở cột phải, giúp admin
+        // dễ đối chiếu danh sách bên trái với nội dung đang hiện ra
+        if (scene.id === idSceneDangXemTruoc) {
+          oMuc.classList.add("dang-chon");
+        }
+
+        // Nhãn "Scene bắt đầu" chỉ hiện ở đúng 1 scene có cờ true
+        const htmlNhanBatDau = scene.la_scene_bat_dau
+          ? '<span class="nhan-scene-bat-dau">Scene bắt đầu</span>'
+          : "";
+
+        // Nút "Đặt làm mặc định" CHỈ hiện với scene CHƯA phải scene
+        // bắt đầu — scene đã là mặc định rồi thì không cần nút này nữa
+        const htmlNutDatMacDinh = scene.la_scene_bat_dau
+          ? ""
+          : '<button type="button" class="nut-scene-dat-mac-dinh" data-id="' +
+            thoatHtml(scene.id) +
+            '">Đặt làm mặc định</button>';
+
+        oMuc.innerHTML = `
+          <button type="button" class="scene-ten-nut" data-id="${thoatHtml(scene.id)}">
+            <span class="scene-thu-tu">#${scene.thu_tu}</span>
+            <span>${thoatHtml(scene.ten_scene)}</span>
+            ${htmlNhanBatDau}
+          </button>
+          <div class="scene-hanh-dong">
+            <button type="button" class="nut-scene-sua" data-id="${thoatHtml(scene.id)}">Sửa</button>
+            <button
+              type="button"
+              class="nut-scene-xoa"
+              data-id="${thoatHtml(scene.id)}"
+              data-ten="${thoatHtml(scene.ten_scene)}"
+            >Xoá</button>
+            ${htmlNutDatMacDinh}
+          </div>
+        `;
+
+        // Gắn sự kiện cho từng nút vừa tạo bằng addEventListener +
+        // đọc lại dữ liệu qua dataset, thay vì nhúng trực tiếp biến
+        // scene vào chuỗi onclick — an toàn hơn với dữ liệu có dấu
+        // ngoặc kép/nháy đơn (đã áp dụng cùng cách ở quan-ly-bai-viet.html)
+        oMuc
+          .querySelector(".scene-ten-nut")
+          .addEventListener("click", function () {
+            chonSceneXemTruoc(scene.id);
+          });
+
+        oMuc.querySelector(".nut-scene-sua").addEventListener("click", function () {
+          moFormSuaScene(scene.id);
+        });
+
+        oMuc.querySelector(".nut-scene-xoa").addEventListener("click", function () {
+          xuLyXoaScene(scene.id, scene.ten_scene);
+        });
+
+        const oNutDatMacDinh = oMuc.querySelector(".nut-scene-dat-mac-dinh");
+        if (oNutDatMacDinh) {
+          oNutDatMacDinh.addEventListener("click", function () {
+            xuLyDatLamMacDinh(scene.id);
+          });
+        }
+
+        oDanhSach.appendChild(oMuc);
+      });
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: huyTrinhXemPannellumNeuCo
+    // MỤC ĐÍCH: Gọi .destroy() cho instance Pannellum ĐANG chạy (nếu
+    // có), để giải phóng canvas/bộ nhớ trước khi vẽ khung xem trước
+    // MỚI hoặc chuyển cột phải sang hiện form. Nếu không gọi hàm này
+    // trước, chuyển qua lại nhiều lần giữa các scene sẽ để lại nhiều
+    // instance chồng lên nhau, gây rò rỉ bộ nhớ và giật lag trình duyệt.
+    // ------------------------------------------------------------
+    function huyTrinhXemPannellumNeuCo() {
+      if (trinhXemPannellum) {
+        trinhXemPannellum.destroy();
+        trinhXemPannellum = null;
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: resetTrangThaiHotspot
+    // MỤC ĐÍCH: Đưa toàn bộ biến trạng thái liên quan hotspot về giá
+    // trị ban đầu. Được gọi mỗi khi cột phải chuyển sang hiển thị
+    // nội dung KHÁC không phải khung xem trước 1 scene (VD: chuyển
+    // sang form thêm/sửa scene, hoặc đóng khung xem trước) — tránh
+    // để sót trạng thái "đang đặt hotspot"/"đang sửa hotspot" của
+    // scene cũ ảnh hưởng sang màn hình mới.
+    // ------------------------------------------------------------
+        function resetTrangThaiHotspot() {
+      danhSachHotspotHienTai = [];
+      dangBatCheDoDatHotspot = false;
+      idHotspotDangSua = null;
+      toaDoDangChon = null;
+      fileAnhInfoMoi = null;
+      urlAnhInfoHienTai = null;
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: chonSceneXemTruoc
+    // MỤC ĐÍCH: Được gọi khi admin bấm vào tên 1 scene ở cột trái —
+    // tìm dữ liệu scene đó trong cache, vẽ khung xem trước 360° (kèm
+    // khu vực quản lý hotspot) ở cột phải, đồng thời vẽ lại danh
+    // sách bên trái để tô sáng đúng scene vừa chọn.
+    //
+    // THAM SỐ: id - UUID của scene cần xem trước
+    // ------------------------------------------------------------
+    async function chonSceneXemTruoc(id) {
+      const scene = danhSachSceneHienTai.find(function (s) {
+        return s.id === id;
+      });
+
+      if (!scene) {
+        return;
+      }
+
+      idSceneDangXemTruoc = id;
+      idSceneDangSua = null; // đóng form (nếu đang mở) khi chuyển sang xem trước
+
+      veLaiDanhSachScene(); // vẽ lại để tô sáng đúng mục đang chọn
+      await veKhungXemTruoc(scene);
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veKhungXemTruoc
+    // MỤC ĐÍCH: Dựng HTML khung xem trước ảnh 360° CHO 1 SCENE ở cột
+    // phải, kèm khu vực quản lý hotspot của scene đó ngay bên dưới,
+    // rồi khởi tạo trình xem Pannellum (đã gắn sẵn các hotspot hiện
+    // có làm điểm đánh dấu trên ảnh).
+    //
+    // THAM SỐ: scene - object scene lấy từ danhSachSceneHienTai
+    // ------------------------------------------------------------
+    async function veKhungXemTruoc(scene) {
+      huyTrinhXemPannellumNeuCo();
+      resetTrangThaiHotspot();
+
+      const oCot = document.getElementById("cot-noi-dung-scene");
+
+      oCot.innerHTML = `
+        <div class="tieu-de-scene-xem-truoc">
+          <h2>${thoatHtml(scene.ten_scene)}</h2>
+        </div>
+        ${
+          scene.mo_ta
+            ? `<p class="mo-ta-scene-xem-truoc">${thoatHtml(scene.mo_ta)}</p>`
+            : ""
+        }
+        <div class="khung-preview-360" id="khung-preview-360" style="width: 100%; height: 420px;"></div>
+
+        <!-- ============================================
+             KHU VỰC QUẢN LÝ HOTSPOT của scene đang xem
+             ============================================ -->
+        <div class="khu-vuc-hotspot">
+          <div class="thanh-cong-cu-hotspot">
+            <h3>Hotspot trên scene này</h3>
+            <button type="button" class="nut-them-moi" id="nut-bat-che-do-dat-hotspot">
+              + Thêm hotspot mới
+            </button>
+          </div>
+
+          <p class="ghi-chu-dat-hotspot" id="ghi-chu-dat-hotspot" style="display: none">
+            Bấm vào vị trí bất kỳ trên ảnh 360° phía trên để đặt hotspot mới tại đó.
+            <button type="button" class="nut-huy-nho" id="nut-huy-dat-hotspot">Huỷ</button>
+          </p>
+
+          <!-- JS sẽ chèn từng hotspot vào đây sau khi tải xong -->
+          <ul class="danh-sach-hotspot" id="danh-sach-hotspot">
+            <li class="thong-bao-rong" style="padding: 0.75rem">Đang tải hotspot...</li>
+          </ul>
+
+          <!-- JS sẽ chèn form thêm/sửa hotspot vào đây khi cần -->
+          <div id="khu-vuc-form-hotspot"></div>
+        </div>
+      `;
+
+      // Gắn sự kiện cho 2 nút của khu vực hotspot vừa tạo. Không
+      // dùng thuộc tính onclick trực tiếp trong chuỗi HTML ở trên để
+      // giữ đồng nhất cách gắn sự kiện với phần còn lại của trang
+      document
+        .getElementById("nut-bat-che-do-dat-hotspot")
+        .addEventListener("click", function () {
+          idHotspotDangSua = null; // "+ Thêm hotspot mới" luôn là thêm mới, không phải sửa
+          batCheDoDatHotspotMoi();
+        });
+
+      document
+        .getElementById("nut-huy-dat-hotspot")
+        .addEventListener("click", tatCheDoDatHotspotMoi);
+
+      // Tải danh sách hotspot của scene này TRƯỚC khi khởi tạo
+      // Pannellum, để có thể truyền sẵn toàn bộ hotspot vào cấu hình
+      // ngay lúc khởi tạo (thay vì gọi thêm addHotSpot() sau đó)
+      const ketQuaHotspot = await layDanhSachHotspotTheoScene(scene.id);
+      danhSachHotspotHienTai = ketQuaHotspot.thanhCong ? ketQuaHotspot.duLieu : [];
+
+      // pannellum là biến toàn cục do thư viện Pannellum.js tạo ra
+      // sau khi thẻ <script src="...pannellum.js"> chạy xong.
+      // pannellum.viewer(idKhungChua, cauHinh) khởi tạo 1 trình xem
+      // 360° mới, trả về 1 "instance" — lưu lại instance này vào
+      // biến trinhXemPannellum để có thể .destroy() ở lần chọn tiếp theo
+      trinhXemPannellum = pannellum.viewer("khung-preview-360", {
+        type: "equirectangular",
+        panorama: scene.url_anh_360,
+        autoLoad: true,
+        // Ẩn nút "Toàn màn hình" mặc định của Pannellum trong khung
+        // xem trước ở trang admin, vì đây chỉ là xem thử khi biên
+        // tập, không cần trải nghiệm toàn màn hình như trang public
+        showFullscreenCtrl: false,
+        // Gắn sẵn toàn bộ hotspot hiện có của scene này làm điểm
+        // đánh dấu trên ảnh — xem hàm taoMangCauHinhHotspot() bên dưới
+        hotSpots: taoMangCauHinhHotspot(),
+      });
+
+      // Gắn sự kiện bấm chuột lên chính KHUNG chứa ảnh 360° (không
+      // phải sự kiện riêng của Pannellum) để có thể tự tính toạ độ
+      // pitch/yaw bất cứ lúc nào admin bấm lên ảnh trong "chế độ đặt
+      // hotspot mới" — xem giải thích chi tiết ở xuLyClickTrenAnh360()
+      document
+        .getElementById("khung-preview-360")
+        .addEventListener("click", xuLyClickTrenAnh360);
+
+      veDanhSachHotspot();
+    }
+
+    // ==================================================================
+    // CÁC HÀM QUẢN LÝ HOTSPOT (bổ sung mới)
+    // ==================================================================
+
+    // ------------------------------------------------------------
+    // HÀM: ganTieuDeHotspot
+    // MỤC ĐÍCH: Được Pannellum tự động gọi 1 LẦN DUY NHẤT ngay khi
+    // nó vừa tạo xong phần tử <div> đại diện cho 1 hotspot loại
+    // "custom" trên ảnh (tham số createTooltipFunc trong cấu hình
+    // hotspot). Việc của hàm này là gắn thuộc tính "title" cho phần
+    // tử đó, để trình duyệt tự hiện tooltip (chữ nhỏ) khi admin rê
+    // chuột vào — không cần tự viết cơ chế tooltip riêng.
+    //
+    // THAM SỐ:
+    //   - hotSpotDiv: phần tử <div> Pannellum vừa tạo cho hotspot này
+    //   - tieuDe: chuỗi tiêu đề (lấy từ createTooltipArgs khi khai
+    //     báo hotspot, xem hàm taoMangCauHinhHotspot())
+    // ------------------------------------------------------------
+    function ganTieuDeHotspot(hotSpotDiv, tieuDe) {
+      hotSpotDiv.title = tieuDe;
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyBamHotspotTrenAnh
+    // MỤC ĐÍCH: Được Pannellum tự động gọi khi admin BẤM TRỰC TIẾP
+    // vào 1 điểm đánh dấu hotspot đã có sẵn trên ảnh (tham số
+    // clickHandlerFunc trong cấu hình hotspot) — mở luôn form Sửa
+    // cho đúng hotspot đó, tiện hơn phải kéo xuống tìm trong danh
+    // sách bên dưới.
+    //
+    // THAM SỐ:
+    //   - event: sự kiện click gốc (không dùng tới, nhưng Pannellum
+    //     luôn truyền vào nên vẫn khai báo tham số cho đúng thứ tự)
+    //   - idHotspot: id hotspot (lấy từ clickHandlerArgs khi khai
+    //     báo hotspot, xem hàm taoMangCauHinhHotspot())
+    // ------------------------------------------------------------
+    function xuLyBamHotspotTrenAnh(event, idHotspot) {
+      moFormSuaHotspotTuDanhSach(idHotspot);
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taoMangCauHinhHotspot
+    // MỤC ĐÍCH: Chuyển danhSachHotspotHienTai (dữ liệu thô từ
+    // database) thành đúng định dạng mảng "hotSpots" mà Pannellum
+    // yêu cầu khi khởi tạo trình xem (mỗi phần tử là 1 object cấu
+    // hình 1 hotspot).
+    //
+    // Dùng type: "custom" cho MỌI hotspot (bất kể loai_hotspot là
+    // "info" hay "scene") vì ở màn hình ADMIN đây chỉ đơn thuần là
+    // XEM VỊ TRÍ + bấm vào để SỬA — hành vi "hiện thông tin" hay
+    // "chuyển scene" thật sự chỉ cần xử lý ở TRANG PUBLIC
+    // (khong-gian-3d.html), không cần ở trang quản trị này.
+    //
+    // TRẢ VỀ: mảng object hotspot theo định dạng Pannellum
+    // ------------------------------------------------------------
+    function taoMangCauHinhHotspot() {
+      return danhSachHotspotHienTai.map(function (hotspot) {
+        return {
+          id: hotspot.id,
+          pitch: hotspot.toa_do_pitch,
+          yaw: hotspot.toa_do_yaw,
+          type: "custom",
+          // cssClass quyết định màu sắc điểm đánh dấu — xanh dương
+          // cho loại "info", xanh lá cho loại "scene" (xem CSS)
+          cssClass:
+            "hotspot-quan-tri " +
+            (hotspot.loai_hotspot === "scene"
+              ? "hotspot-loai-scene"
+              : "hotspot-loai-info"),
+          createTooltipFunc: ganTieuDeHotspot,
+          createTooltipArgs: hotspot.tieu_de_hotspot,
+          clickHandlerFunc: xuLyBamHotspotTrenAnh,
+          clickHandlerArgs: hotspot.id,
+        };
+      });
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veDanhSachHotspot
+    // MỤC ĐÍCH: Vẽ lại danh sách hotspot (dạng chữ, dưới ảnh 360°)
+    // của scene đang xem, dựa vào cache danhSachHotspotHienTai
+    // ------------------------------------------------------------
+    function veDanhSachHotspot() {
+      const oDanhSach = document.getElementById("danh-sach-hotspot");
+      if (!oDanhSach) {
+        return; // cột phải có thể đã chuyển sang màn hình khác rồi
+      }
+
+      if (danhSachHotspotHienTai.length === 0) {
+        oDanhSach.innerHTML =
+          '<li class="thong-bao-rong" style="padding: 0.75rem">Scene này chưa có hotspot nào. Bấm "+ Thêm hotspot mới" rồi bấm lên ảnh để đặt.</li>';
+        return;
+      }
+
+      oDanhSach.innerHTML = "";
+
+      danhSachHotspotHienTai.forEach(function (hotspot) {
+        const oMuc = document.createElement("li");
+        oMuc.className = "muc-hotspot";
+
+        const nhanLoai =
+          hotspot.loai_hotspot === "scene" ? "Chuyển scene" : "Thông tin";
+
+        oMuc.innerHTML = `
+          <div class="hotspot-thong-tin">
+            <span class="nhan-loai-hotspot nhan-loai-${thoatHtml(
+              hotspot.loai_hotspot
+            )}">${nhanLoai}</span>
+            <span>${thoatHtml(hotspot.tieu_de_hotspot)}</span>
+          </div>
+          <div class="hotspot-hanh-dong">
+            <button type="button" class="nut-hotspot-sua" data-id="${thoatHtml(
+              hotspot.id
+            )}">Sửa</button>
+            <button
+              type="button"
+              class="nut-hotspot-xoa"
+              data-id="${thoatHtml(hotspot.id)}"
+              data-ten="${thoatHtml(hotspot.tieu_de_hotspot)}"
+            >Xoá</button>
+          </div>
+        `;
+
+        oMuc.querySelector(".nut-hotspot-sua").addEventListener("click", function () {
+          moFormSuaHotspotTuDanhSach(hotspot.id);
+        });
+
+        oMuc.querySelector(".nut-hotspot-xoa").addEventListener("click", function () {
+          xuLyXoaHotspot(hotspot.id, hotspot.tieu_de_hotspot);
+        });
+
+        oDanhSach.appendChild(oMuc);
+      });
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: batCheDoDatHotspotMoi
+    // MỤC ĐÍCH: Bật "chế độ chờ bấm lên ảnh" — hiện dòng ghi chú
+    // hướng dẫn, đổi con trỏ chuột khi rê trên ảnh 360° thành dấu
+    // cộng (crosshair), đồng thời đóng form hotspot đang mở (nếu có)
+    // trong lúc chờ admin bấm lên ảnh.
+    //
+    // Hàm này dùng CHUNG cho cả 2 trường hợp:
+    //   - Bấm "+ Thêm hotspot mới" (nơi gọi tự set idHotspotDangSua = null)
+    //   - Bấm "Đặt lại vị trí" trong form Sửa (idHotspotDangSua giữ
+    //     nguyên giá trị hotspot đang sửa, KHÔNG bị hàm này đụng tới)
+    // ------------------------------------------------------------
+    function batCheDoDatHotspotMoi() {
+      dangBatCheDoDatHotspot = true;
+
+      const oGhiChu = document.getElementById("ghi-chu-dat-hotspot");
+      if (oGhiChu) {
+        oGhiChu.style.display = "block";
+      }
+
+      const oKhungAnh = document.getElementById("khung-preview-360");
+      if (oKhungAnh) {
+        oKhungAnh.classList.add("dang-dat-hotspot");
+      }
+
+      dongFormHotspot();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: tatCheDoDatHotspotMoi
+    // MỤC ĐÍCH: Tắt "chế độ chờ bấm lên ảnh" — ẩn dòng ghi chú, trả
+    // lại con trỏ chuột bình thường. Được gọi khi: admin bấm "Huỷ"
+    // ở dòng ghi chú, HOẶC ngay sau khi admin vừa bấm xong 1 điểm
+    // trên ảnh (xem xuLyClickTrenAnh360()).
+    // ------------------------------------------------------------
+    function tatCheDoDatHotspotMoi() {
+      dangBatCheDoDatHotspot = false;
+
+      const oGhiChu = document.getElementById("ghi-chu-dat-hotspot");
+      if (oGhiChu) {
+        oGhiChu.style.display = "none";
+      }
+
+      const oKhungAnh = document.getElementById("khung-preview-360");
+      if (oKhungAnh) {
+        oKhungAnh.classList.remove("dang-dat-hotspot");
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyClickTrenAnh360
+    // MỤC ĐÍCH: Chạy MỖI KHI admin bấm chuột vào khung ảnh 360°
+    // (khung-preview-360) — nhưng CHỈ thực sự xử lý khi đang ở "chế
+    // độ chờ bấm lên ảnh" (dangBatCheDoDatHotspot = true), các cú
+    // bấm bình thường khác (để kéo xoay ảnh xem) được bỏ qua.
+    //
+    // trinhXemPannellum.mouseEventToCoords(event) là hàm có sẵn của
+    // Pannellum, chuyển 1 sự kiện click chuột thành toạ độ [pitch,
+    // yaw] tương ứng với đúng điểm vừa bấm trên mặt cầu ảnh 360°.
+    //
+    // Sau khi lấy được toạ độ, tắt chế độ chờ rồi mở form: nếu
+    // idHotspotDangSua đang có giá trị (trường hợp bấm "Đặt lại vị
+    // trí" từ form Sửa) thì mở lại đúng form Sửa hotspot đó với toạ
+    // độ mới; ngược lại mở form Thêm mới.
+    //
+    // THAM SỐ: event - sự kiện "click" trên khung ảnh
+    // ------------------------------------------------------------
+    function xuLyClickTrenAnh360(event) {
+      if (!dangBatCheDoDatHotspot) {
+        return;
+      }
+
+      const toaDo = trinhXemPannellum.mouseEventToCoords(event);
+      toaDoDangChon = { pitch: toaDo[0], yaw: toaDo[1] };
+
+      tatCheDoDatHotspotMoi();
+
+      if (idHotspotDangSua) {
+        const hotspotDangSua = danhSachHotspotHienTai.find(function (h) {
+          return h.id === idHotspotDangSua;
+        });
+        moFormHotspot(hotspotDangSua || null);
+      } else {
+        moFormHotspot(null);
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: moFormSuaHotspotTuDanhSach
+    // MỤC ĐÍCH: Mở form SỬA 1 hotspot đã tồn tại, dùng LUÔN dữ liệu
+    // đang có sẵn trong cache danhSachHotspotHienTai (không cần gọi
+    // lại API, vì scene đang xem chỉ vừa mới tải danh sách hotspot
+    // xong). Được gọi từ 2 nơi: nút "Sửa" trong danh sách bên dưới
+    // ảnh, HOẶC khi admin bấm trực tiếp vào 1 điểm đánh dấu hotspot
+    // trên ảnh 360° (xem xuLyBamHotspotTrenAnh()).
+    //
+    // THAM SỐ: idHotspot - UUID của hotspot cần sửa
+    // ------------------------------------------------------------
+    function moFormSuaHotspotTuDanhSach(idHotspot) {
+      const hotspot = danhSachHotspotHienTai.find(function (h) {
+        return h.id === idHotspot;
+      });
+
+      if (!hotspot) {
+        return;
+      }
+
+      idHotspotDangSua = hotspot.id;
+      toaDoDangChon = { pitch: hotspot.toa_do_pitch, yaw: hotspot.toa_do_yaw };
+
+      tatCheDoDatHotspotMoi(); // phòng trường hợp đang dở chế độ đặt hotspot khác
+      moFormHotspot(hotspot);
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: moFormHotspot
+    // MỤC ĐÍCH: Dựng HTML form thêm/sửa hotspot, chèn vào
+    // #khu-vuc-form-hotspot (nằm ngay dưới danh sách hotspot). Dùng
+    // CHUNG 1 hàm cho cả 2 chế độ, phân biệt bằng tham số "hotspot":
+    //   - hotspot = null  -> chế độ THÊM MỚI, form trống (trừ toạ độ
+    //     đã có sẵn từ toaDoDangChon, lấy được từ cú bấm lên ảnh)
+    //   - hotspot = object -> chế độ SỬA, form điền sẵn dữ liệu
+    //
+    // LƯU Ý: toaDoDangChon PHẢI được set từ TRƯỚC khi gọi hàm này
+    // (bởi xuLyClickTrenAnh360() hoặc moFormSuaHotspotTuDanhSach()),
+    // hàm này chỉ đọc lại để hiển thị, không tự tính toán.
+    //
+    // THAM SỐ: hotspot - object hotspot (chế độ Sửa) hoặc null (chế độ Thêm)
+    // ------------------------------------------------------------
+    function moFormHotspot(hotspot) {
+      const dangSua = hotspot !== null && hotspot !== undefined;
+
+      if (dangSua) {
+        idHotspotDangSua = hotspot.id;
+      }
+
+      const oKhuVuc = document.getElementById("khu-vuc-form-hotspot");
+      if (!oKhuVuc || !toaDoDangChon) {
+        return;
+      }
+
+      // Danh sách các scene KHÁC (không tính scene đang xem) để chọn
+      // làm "scene đích" khi loại hotspot là "scene" (chuyển cảnh)
+      const htmlTuyChonScene = danhSachSceneHienTai
+        .filter(function (s) {
+          return s.id !== idSceneDangXemTruoc;
+        })
+        .map(function (s) {
+          const daChon =
+            dangSua && hotspot.scene_dich_id === s.id ? "selected" : "";
+          return `<option value="${thoatHtml(s.id)}" ${daChon}>${thoatHtml(
+            s.ten_scene
+          )}</option>`;
+        })
+        .join("");
+
+      const loaiHienTai = dangSua ? hotspot.loai_hotspot : "info";
+
+      fileAnhInfoMoi = null;
+      urlAnhInfoHienTai = dangSua ? (hotspot.url_anh_info || null) : null;
+
+      oKhuVuc.innerHTML = `
+        <div class="form-hotspot">
+          <h4>${dangSua ? "Sửa hotspot" : "Thêm hotspot mới"}</h4>
+
+          <p class="ghi-chu-truong">
+            Toạ độ: pitch ${toaDoDangChon.pitch.toFixed(2)}, yaw ${toaDoDangChon.yaw.toFixed(2)}<br />
+            <button type="button" class="nut-huy-nho" id="nut-dat-lai-vi-tri">
+              Đặt lại vị trí bằng cách bấm lên ảnh
+            </button>
+          </p>
+
+          <form id="form-hotspot" onsubmit="xuLyLuuHotspot(event)">
+            <div class="nhom-truong-form">
+              <label for="input-tieu-de-hotspot">Tiêu đề hotspot *</label>
+              <input
+                type="text"
+                id="input-tieu-de-hotspot"
+                value="${dangSua ? thoatHtml(hotspot.tieu_de_hotspot) : ""}"
+                required
+              />
+              <p class="ghi-chu-truong">Hiện ra khi khách rê chuột/chạm vào điểm đánh dấu.</p>
+            </div>
+
+            <div class="nhom-truong-form">
+              <label for="input-loai-hotspot">Loại hotspot *</label>
+              <select id="input-loai-hotspot" onchange="doiLoaiHotspotTrongForm()">
+                <option value="info" ${loaiHienTai === "info" ? "selected" : ""}>
+                  Hiện thông tin
+                </option>
+                <option value="scene" ${loaiHienTai === "scene" ? "selected" : ""}>
+                  Chuyển sang scene khác
+                </option>
+              </select>
+            </div>
+
+            <div
+              class="nhom-truong-form"
+              id="nhom-noi-dung-info"
+              style="${loaiHienTai === "info" ? "" : "display: none"}"
+            >
+              <label for="input-noi-dung-info">Nội dung hiển thị</label>
+              <textarea id="input-noi-dung-info" rows="3">${
+                dangSua ? thoatHtml(hotspot.noi_dung_info || "") : ""
+              }</textarea>
+
+              <label for="input-anh-hotspot" style="margin-top: 0.75rem; display: block">
+                Ảnh cận cảnh (tuỳ chọn)
+              </label>
+              <input
+                type="file"
+                id="input-anh-hotspot"
+                accept="image/*"
+                onchange="xemTruocAnhHotspot(event)"
+              />
+              <p class="ghi-chu-truong">
+                Để trống nếu không cần ảnh minh hoạ, chỉ hiện chữ thôi.
+                ${dangSua ? "Để trống nếu không muốn đổi ảnh hiện tại." : ""}
+              </p>
+              <img
+                id="xem-truoc-anh-hotspot"
+                class="xem-truoc-anh"
+                alt="Xem trước ảnh cận cảnh"
+                style="${
+                  urlAnhInfoHienTai
+                    ? "display:block; max-height:140px;"
+                    : "display:none; max-height:140px;"
+                }"
+                ${urlAnhInfoHienTai ? `src="${thoatHtml(urlAnhInfoHienTai)}"` : ""}
+              />
+            </div>
+
+            <div
+              class="nhom-truong-form"
+              id="nhom-scene-dich"
+              style="${loaiHienTai === "scene" ? "" : "display: none"}"
+            >
+              <label for="input-scene-dich">Scene sẽ chuyển tới</label>
+              <select id="input-scene-dich">
+                <option value="">-- Chọn scene --</option>
+                ${htmlTuyChonScene}
+              </select>
+            </div>
+
+            <div>
+              <button type="submit" class="nut-luu-bai-viet" id="nut-luu-hotspot">
+                ${dangSua ? "Lưu thay đổi" : "Thêm hotspot"}
+              </button>
+              <button type="button" class="nut-huy" onclick="huyFormHotspot()">Huỷ</button>
+              ${
+                dangSua
+                  ? '<button type="button" class="nut-xoa-nho" id="nut-xoa-hotspot-trong-form">Xoá hotspot này</button>'
+                  : ""
+              }
+            </div>
+
+            <div
+              class="thong-bao-ket-qua"
+              id="thong-bao-ket-qua-hotspot"
+              style="display: none"
+            ></div>
+          </form>
+        </div>
+      `;
+
+      document
+        .getElementById("nut-dat-lai-vi-tri")
+        .addEventListener("click", batCheDoDatHotspotMoi);
+
+      if (dangSua) {
+        document
+          .getElementById("nut-xoa-hotspot-trong-form")
+          .addEventListener("click", function () {
+            xuLyXoaHotspot(hotspot.id, hotspot.tieu_de_hotspot);
+          });
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: doiLoaiHotspotTrongForm
+    // MỤC ĐÍCH: Chạy khi admin đổi lựa chọn ở ô "Loại hotspot" trong
+    // form — ẩn/hiện đúng nhóm trường tương ứng (nội dung thông tin,
+    // hoặc ô chọn scene đích), tránh admin điền nhầm trường không
+    // liên quan tới loại vừa chọn.
+    // ------------------------------------------------------------
+    function doiLoaiHotspotTrongForm() {
+      const loai = document.getElementById("input-loai-hotspot").value;
+      document.getElementById("nhom-noi-dung-info").style.display =
+        loai === "info" ? "" : "none";
+      document.getElementById("nhom-scene-dich").style.display =
+        loai === "scene" ? "" : "none";
+    }
+
+        // ------------------------------------------------------------
+    // HÀM: xemTruocAnhHotspot
+    // MỤC ĐÍCH: Khi admin chọn 1 file ảnh cận cảnh mới trong form
+    // hotspot, hiện ngay ảnh đó lên khung xem trước nhỏ (đọc trực
+    // tiếp từ máy admin, CHƯA upload lên Storage vội) — giống hệt
+    // cơ chế xemTruocAnh360() ở phần quản lý scene.
+    //
+    // THAM SỐ: event - sự kiện "change" của ô input file
+    // ------------------------------------------------------------
+    function xemTruocAnhHotspot(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+
+      fileAnhInfoMoi = file;
+
+      const duongDanTam = URL.createObjectURL(file);
+      const oAnh = document.getElementById("xem-truoc-anh-hotspot");
+      oAnh.src = duongDanTam;
+      oAnh.style.display = "block";
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: dongFormHotspot
+    // MỤC ĐÍCH: Chỉ đơn thuần XOÁ nội dung HTML của form hotspot
+    // đang hiện (nếu có), KHÔNG đụng tới idHotspotDangSua/toaDoDangChon
+    // — dùng khi cần tạm ẩn form trong lúc chờ admin bấm lên ảnh
+    // (xem batCheDoDatHotspotMoi()), vì lúc đó vẫn cần GIỮ LẠI
+    // idHotspotDangSua nếu đang trong luồng "Đặt lại vị trí" khi Sửa.
+    // ------------------------------------------------------------
+    function dongFormHotspot() {
+      const oKhuVuc = document.getElementById("khu-vuc-form-hotspot");
+      if (oKhuVuc) {
+        oKhuVuc.innerHTML = "";
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: huyFormHotspot
+    // MỤC ĐÍCH: Được gọi khi admin bấm nút "Huỷ" trong form hotspot
+    // — đóng form VÀ đưa trạng thái Thêm/Sửa về ban đầu (khác với
+    // dongFormHotspot() ở trên, hàm này XOÁ LUÔN idHotspotDangSua và
+    // toaDoDangChon vì admin đã chủ động huỷ thao tác)
+    // ------------------------------------------------------------
+    function huyFormHotspot() {
+      idHotspotDangSua = null;
+      toaDoDangChon = null;
+      dongFormHotspot();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiLaiHotspotChoSceneHienTai
+    // MỤC ĐÍCH: Tải lại toàn bộ dữ liệu hiển thị (danh sách + điểm
+    // đánh dấu trên ảnh) cho ĐÚNG scene đang xem, sau khi thêm/sửa/
+    // xoá 1 hotspot. Cách đơn giản và chắc chắn nhất là vẽ lại TOÀN
+    // BỘ khung xem trước (gọi lại veKhungXemTruoc() với cùng 1
+    // scene) — có tốn thêm 1 lượt tải lại ảnh 360°, nhưng ảnh đó
+    // trình duyệt đã cache sẵn (cùng 1 URL) nên gần như tức thời,
+    // đổi lại code đơn giản và ít khả năng hotspot bị vẽ sai vị trí.
+    // ------------------------------------------------------------
+    async function taiLaiHotspotChoSceneHienTai() {
+      const scene = danhSachSceneHienTai.find(function (s) {
+        return s.id === idSceneDangXemTruoc;
+      });
+
+      if (!scene) {
+        return;
+      }
+
+      await veKhungXemTruoc(scene);
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyLuuHotspot
+    // MỤC ĐÍCH: Được gọi khi admin bấm "Thêm hotspot"/"Lưu thay đổi"
+    // (submit form hotspot) — gom dữ liệu form thành 1 object đúng
+    // tên cột trong bảng tour_hotspot -> gọi themHotspot() hoặc
+    // suaHotspot() tuỳ theo đang ở chế độ nào -> hiển thị kết quả ->
+    // tải lại toàn bộ khung xem trước + danh sách hotspot.
+    //
+    // THAM SỐ: event - sự kiện submit của form
+    // ------------------------------------------------------------
+    async function xuLyLuuHotspot(event) {
+      event.preventDefault();
+
+      const nutLuu = document.getElementById("nut-luu-hotspot");
+      const oThongBao = document.getElementById("thong-bao-ket-qua-hotspot");
+
+      nutLuu.disabled = true;
+      nutLuu.textContent = "Đang lưu...";
+      oThongBao.style.display = "none";
+
+      try {
+        const loai = document.getElementById("input-loai-hotspot").value;
+        const oChonSceneDich = document.getElementById("input-scene-dich");
+        const idSceneDich = oChonSceneDich ? oChonSceneDich.value : "";
+
+        // Loại "scene" (chuyển cảnh) BẮT BUỘC phải chọn 1 scene đích
+        // cụ thể, không được để trống — kiểm tra thủ công ở đây vì
+        // ô <select> này không có thuộc tính "required" khi đang ẩn
+        if (loai === "scene" && !idSceneDich) {
+          throw new Error("Vui lòng chọn scene sẽ chuyển tới.");
+        }
+
+        // Xác định URL ảnh cận cảnh cuối cùng: nếu admin vừa chọn
+        // file mới -> upload thật lên Storage lấy URL mới; nếu
+        // không -> giữ nguyên URL cũ (chế độ Sửa mà không đổi ảnh)
+        let urlAnhInfoCuoiCung = urlAnhInfoHienTai;
+
+        if (loai === "info" && fileAnhInfoMoi) {
+          const ketQuaUploadAnh = await uploadAnhHotspot(fileAnhInfoMoi);
+          if (!ketQuaUploadAnh.thanhCong) {
+            throw new Error("Lỗi tải ảnh cận cảnh lên: " + ketQuaUploadAnh.loi);
+          }
+          urlAnhInfoCuoiCung = ketQuaUploadAnh.url;
+        }
+
+        const duLieuHotspot = {
+          scene_id: idSceneDangXemTruoc,
+          loai_hotspot: loai,
+          toa_do_pitch: toaDoDangChon.pitch,
+          toa_do_yaw: toaDoDangChon.yaw,
+          tieu_de_hotspot: document
+            .getElementById("input-tieu-de-hotspot")
+            .value.trim(),
+          // Chỉ lưu nội dung thông tin / ảnh khi đúng loại "info",
+          // ngược lại lưu NULL — tránh sót dữ liệu cũ không còn ý
+          // nghĩa nếu admin đổi loại hotspot qua lại nhiều lần khi sửa
+          noi_dung_info:
+            loai === "info"
+              ? document.getElementById("input-noi-dung-info").value.trim()
+              : null,
+          url_anh_info: loai === "info" ? urlAnhInfoCuoiCung : null,
+          scene_dich_id: loai === "scene" ? idSceneDich : null,
+        };
+
+        let ketQuaLuu;
+
+        if (idHotspotDangSua) {
+          ketQuaLuu = await suaHotspot(idHotspotDangSua, duLieuHotspot);
+        } else {
+          ketQuaLuu = await themHotspot(duLieuHotspot);
+        }
+
+        if (!ketQuaLuu.thanhCong) {
+          throw new Error(ketQuaLuu.loi);
+        }
+
+        oThongBao.textContent = "Lưu hotspot thành công!";
+        oThongBao.className = "thong-bao-ket-qua thanh-cong";
+        oThongBao.style.display = "block";
+
+        idHotspotDangSua = null;
+        toaDoDangChon = null;
+
+        setTimeout(async function () {
+          dongFormHotspot();
+          await taiLaiHotspotChoSceneHienTai();
+        }, 600);
+      } catch (loi) {
+        oThongBao.textContent = "Có lỗi xảy ra: " + loi.message;
+        oThongBao.className = "thong-bao-ket-qua that-bai";
+        oThongBao.style.display = "block";
+
+        nutLuu.disabled = false;
+        nutLuu.textContent = idHotspotDangSua ? "Lưu thay đổi" : "Thêm hotspot";
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyXoaHotspot
+    // MỤC ĐÍCH: Được gọi khi admin bấm nút "Xoá" ở 1 hotspot (trong
+    // danh sách, hoặc ngay trong form Sửa). Hiện hộp thoại xác nhận
+    // trước khi xoá thật, sau đó tải lại khung xem trước.
+    //
+    // THAM SỐ:
+    //   - id: UUID của hotspot cần xoá
+    //   - tieuDe: tiêu đề hotspot, hiển thị trong hộp xác nhận
+    // ------------------------------------------------------------
+    async function xuLyXoaHotspot(id, tieuDe) {
+      const xacNhan = confirm(
+        'Bạn có chắc muốn xoá hotspot "' +
+          tieuDe +
+          '"?\nHành động này không thể hoàn tác.'
+      );
+
+      if (!xacNhan) {
+        return;
+      }
+
+      const ketQua = await xoaHotspot(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Xoá thất bại: " + ketQua.loi);
+        return;
+      }
+
+      // Nếu hotspot vừa xoá ĐANG được mở trong form Sửa, đóng form
+      // lại (vì dữ liệu không còn tồn tại nữa)
+      if (idHotspotDangSua === id) {
+        huyFormHotspot();
+      }
+
+      await taiLaiHotspotChoSceneHienTai();
+    }
+
+    // ==================================================================
+    // CÁC HÀM QUẢN LÝ SCENE (giữ nguyên như trước, có bổ sung gọi
+    // resetTrangThaiHotspot() ở những nơi cột phải KHÔNG còn hiển thị
+    // khung xem trước nữa, để không sót trạng thái hotspot cũ)
+    // ==================================================================
+
+    // ------------------------------------------------------------
+    // HÀM: moFormThemScene
+    // MỤC ĐÍCH: Mở form THÊM MỚI 1 scene ở cột phải (form trống)
+    // ------------------------------------------------------------
+    function moFormThemScene() {
+      idSceneDangSua = null;
+      idSceneDangXemTruoc = null;
+      urlAnh360HienTai = null;
+      fileAnh360Moi = null;
+      resetTrangThaiHotspot();
+
+      veLaiDanhSachScene(); // bỏ tô sáng scene cũ, vì giờ không xem trước scene nào nữa
+      veFormScene(null);
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: moFormSuaScene
+    // MỤC ĐÍCH: Mở form SỬA 1 scene đã tồn tại, tự động điền sẵn dữ
+    // liệu hiện có của scene đó vào form.
+    //
+    // THAM SỐ: id - UUID của scene cần sửa
+    // ------------------------------------------------------------
+    async function moFormSuaScene(id) {
+      const ketQua = await layChiTietScene(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Không tải được thông tin scene: " + ketQua.loi);
+        return;
+      }
+
+      idSceneDangSua = id;
+      idSceneDangXemTruoc = null;
+      urlAnh360HienTai = ketQua.duLieu.url_anh_360 || null;
+      fileAnh360Moi = null;
+      resetTrangThaiHotspot();
+
+      veLaiDanhSachScene();
+      veFormScene(ketQua.duLieu);
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: veFormScene
+    // MỤC ĐÍCH: Dựng HTML form thêm/sửa scene ở cột phải. Dùng CHUNG
+    // 1 hàm cho cả 2 chế độ, phân biệt bằng tham số "scene":
+    //   - scene = null  -> chế độ THÊM MỚI, form trống
+    //   - scene = object -> chế độ SỬA, form điền sẵn dữ liệu
+    //
+    // THAM SỐ: scene - object scene (chế độ Sửa) hoặc null (chế độ Thêm)
+    // ------------------------------------------------------------
+    function veFormScene(scene) {
+      huyTrinhXemPannellumNeuCo();
+
+      const oCot = document.getElementById("cot-noi-dung-scene");
+      const dangSua = scene !== null;
+
+      oCot.innerHTML = `
+        <h2>${dangSua ? "Sửa scene" : "Thêm scene mới"}</h2>
+
+        <form id="form-scene" onsubmit="xuLyLuuScene(event)">
+          <div class="nhom-truong-form">
+            <label for="input-ten-scene">Tên scene *</label>
+            <input
+              type="text"
+              id="input-ten-scene"
+              value="${dangSua ? thoatHtml(scene.ten_scene) : ""}"
+              required
+            />
+            <p class="ghi-chu-truong">
+              VD: "Sảnh chính", "Khu trưng bày hiện vật"...
+            </p>
+          </div>
+
+          <div class="nhom-truong-form">
+            <label for="input-mo-ta-scene">Mô tả</label>
+            <textarea id="input-mo-ta-scene" rows="2">${
+              dangSua ? thoatHtml(scene.mo_ta || "") : ""
+            }</textarea>
+          </div>
+
+          <div class="nhom-truong-form">
+            <label for="input-thu-tu-scene">Thứ tự hiển thị</label>
+            <input
+              type="number"
+              id="input-thu-tu-scene"
+              value="${dangSua ? scene.thu_tu : 0}"
+              step="1"
+            />
+            <p class="ghi-chu-truong">
+              Số nhỏ hơn hiển thị trước trong danh sách bên trái. Không bắt buộc, mặc định là 0.
+            </p>
+          </div>
+
+          <div class="nhom-truong-form">
+            <label for="input-anh-360">
+              Ảnh 360° (định dạng equirectangular) ${dangSua ? "" : "*"}
+            </label>
+            <input
+              type="file"
+              id="input-anh-360"
+              accept="image/*"
+              onchange="xemTruocAnh360(event)"
+              ${dangSua ? "" : "required"}
+            />
+            <p class="ghi-chu-truong">
+              ${
+                dangSua
+                  ? "Để trống nếu không muốn đổi ảnh 360° hiện tại."
+                  : "Ảnh chụp/ghép 360° dạng equirectangular (tỉ lệ khung hình 2:1)."
+              }
+            </p>
+            <img
+              id="xem-truoc-anh-360"
+              class="xem-truoc-anh"
+              alt="Xem trước ảnh 360°"
+              style="${
+                dangSua && urlAnh360HienTai
+                  ? "display:block; max-height:180px;"
+                  : "display:none; max-height:180px;"
+              }"
+              ${dangSua && urlAnh360HienTai ? `src="${thoatHtml(urlAnh360HienTai)}"` : ""}
+            />
+          </div>
+
+          <div>
+            <button type="submit" class="nut-luu-bai-viet" id="nut-luu-scene">
+              ${dangSua ? "Lưu thay đổi" : "Thêm scene"}
+            </button>
+            <button type="button" class="nut-huy" onclick="huyFormScene()">Huỷ</button>
+          </div>
+
+          <div
+            class="thong-bao-ket-qua"
+            id="thong-bao-ket-qua-scene"
+            style="display: none"
+          ></div>
+        </form>
+      `;
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xemTruocAnh360
+    // MỤC ĐÍCH: Khi admin chọn 1 file ảnh 360° mới trong form, hiện
+    // ngay ảnh đó lên khung xem trước nhỏ (đọc trực tiếp từ máy admin
+    // qua URL.createObjectURL, CHƯA upload lên Storage vội — giống
+    // hệt cơ chế xemTruocAnhDaiDien() ở admin/bai-viet-form.html)
+    //
+    // THAM SỐ: event - sự kiện "change" của ô input file
+    // ------------------------------------------------------------
+    function xemTruocAnh360(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+
+      fileAnh360Moi = file;
+
+      const duongDanTam = URL.createObjectURL(file);
+      const oAnh = document.getElementById("xem-truoc-anh-360");
+      oAnh.src = duongDanTam;
+      oAnh.style.display = "block";
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: huyFormScene
+    // MỤC ĐÍCH: Đóng form thêm/sửa đang mở (bấm nút "Huỷ"), quay về
+    // trạng thái ban đầu của cột phải (chưa chọn xem scene nào)
+    // ------------------------------------------------------------
+    function huyFormScene() {
+      idSceneDangSua = null;
+      fileAnh360Moi = null;
+      urlAnh360HienTai = null;
+      resetTrangThaiHotspot();
+
+      const oCot = document.getElementById("cot-noi-dung-scene");
+      oCot.innerHTML =
+        '<p class="thong-bao-rong">Chọn 1 scene ở danh sách bên trái để xem trước, hoặc bấm "+ Thêm scene mới".</p>';
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyLuuScene
+    // MỤC ĐÍCH: Được gọi khi admin bấm "Thêm scene"/"Lưu thay đổi"
+    // (submit form) — upload ảnh 360° mới (nếu có) -> gom dữ liệu
+    // form thành 1 object -> gọi themScene() hoặc suaScene() tuỳ
+    // theo đang ở chế độ nào -> hiển thị kết quả -> tải lại danh
+    // sách -> quay về xem trước đúng scene vừa lưu.
+    //
+    // THAM SỐ: event - sự kiện submit của form
+    // ------------------------------------------------------------
+    async function xuLyLuuScene(event) {
+      event.preventDefault();
+
+      const nutLuu = document.getElementById("nut-luu-scene");
+      const oThongBao = document.getElementById("thong-bao-ket-qua-scene");
+
+      nutLuu.disabled = true;
+      nutLuu.textContent = "Đang lưu...";
+      oThongBao.style.display = "none";
+
+      try {
+        // Xác định URL ảnh 360° cuối cùng: nếu admin vừa chọn file
+        // mới -> upload thật lên Storage lấy URL mới; nếu không ->
+        // giữ nguyên URL cũ (chế độ Sửa mà không đổi ảnh)
+        let urlAnh360CuoiCung = urlAnh360HienTai;
+
+        if (fileAnh360Moi) {
+          const ketQuaUpload = await uploadAnh360(fileAnh360Moi);
+          if (!ketQuaUpload.thanhCong) {
+            throw new Error("Lỗi tải ảnh 360° lên: " + ketQuaUpload.loi);
+          }
+          urlAnh360CuoiCung = ketQuaUpload.url;
+        }
+
+        // Chế độ Thêm mới BẮT BUỘC phải có ảnh (do thuộc tính
+        // "required" trên input file khi không phải chế độ Sửa),
+        // nhưng vẫn kiểm tra lại ở đây cho chắc chắn — phòng trường
+        // hợp trình duyệt nào đó bỏ qua thuộc tính required
+        if (!urlAnh360CuoiCung) {
+          throw new Error("Vui lòng chọn ảnh 360° cho scene này.");
+        }
+
+        const duLieuScene = {
+          ten_scene: document.getElementById("input-ten-scene").value.trim(),
+          mo_ta: document.getElementById("input-mo-ta-scene").value.trim(),
+          thu_tu:
+            parseInt(document.getElementById("input-thu-tu-scene").value, 10) || 0,
+          url_anh_360: urlAnh360CuoiCung,
+        };
+
+        let ketQuaLuu;
+        let idScene;
+
+        if (idSceneDangSua) {
+          ketQuaLuu = await suaScene(idSceneDangSua, duLieuScene);
+          idScene = idSceneDangSua;
+        } else {
+          ketQuaLuu = await themScene(duLieuScene);
+          idScene = ketQuaLuu.id;
+        }
+
+        if (!ketQuaLuu.thanhCong) {
+          throw new Error(ketQuaLuu.loi);
+        }
+
+        oThongBao.textContent = "Lưu scene thành công!";
+        oThongBao.className = "thong-bao-ket-qua thanh-cong";
+        oThongBao.style.display = "block";
+
+        // Tải lại danh sách để cột trái cập nhật đúng dữ liệu mới,
+        // rồi tự động chuyển sang xem trước đúng scene vừa lưu (giúp
+        // admin thấy ngay kết quả thay vì phải tự bấm chọn lại)
+        await taiVaVeDanhSachScene();
+
+        setTimeout(function () {
+          chonSceneXemTruoc(idScene);
+        }, 600);
+      } catch (loi) {
+        oThongBao.textContent = "Có lỗi xảy ra: " + loi.message;
+        oThongBao.className = "thong-bao-ket-qua that-bai";
+        oThongBao.style.display = "block";
+
+        nutLuu.disabled = false;
+        nutLuu.textContent = idSceneDangSua ? "Lưu thay đổi" : "Thêm scene";
+      }
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyXoaScene
+    // MỤC ĐÍCH: Được gọi khi admin bấm nút "Xoá" ở 1 scene. Hiện hộp
+    // thoại xác nhận (nhắc rõ hotspot liên quan cũng sẽ bị xoá theo)
+    // trước khi xoá thật.
+    //
+    // THAM SỐ:
+    //   - id: UUID của scene cần xoá
+    //   - ten: tên scene, hiển thị trong hộp xác nhận
+    // ------------------------------------------------------------
+    async function xuLyXoaScene(id, ten) {
+      const xacNhan = confirm(
+        'Bạn có chắc muốn xoá scene "' +
+          ten +
+          '"?\nMọi hotspot gắn trên scene này cũng sẽ bị xoá theo.\nHành động này không thể hoàn tác.'
+      );
+
+      if (!xacNhan) {
+        return;
+      }
+
+      const ketQua = await xoaScene(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Xoá thất bại: " + ketQua.loi);
+        return;
+      }
+
+      // Nếu scene vừa xoá ĐANG được xem trước ở cột phải, đóng khung
+      // xem trước lại (vì dữ liệu không còn tồn tại nữa)
+      if (idSceneDangXemTruoc === id) {
+        huyTrinhXemPannellumNeuCo();
+        idSceneDangXemTruoc = null;
+        resetTrangThaiHotspot();
+        document.getElementById("cot-noi-dung-scene").innerHTML =
+          '<p class="thong-bao-rong">Chọn 1 scene ở danh sách bên trái để xem trước, hoặc bấm "+ Thêm scene mới".</p>';
+      }
+
+      await taiVaVeDanhSachScene();
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: xuLyDatLamMacDinh
+    // MỤC ĐÍCH: Được gọi khi admin bấm nút "Đặt làm mặc định" ở 1
+    // scene — gọi datLamSceneBatDau() (tour-admin.js), rồi tải lại
+    // danh sách để cập nhật đúng nhãn "Scene bắt đầu" trên giao diện
+    //
+    // THAM SỐ: id - UUID của scene muốn đặt làm scene bắt đầu
+    // ------------------------------------------------------------
+    async function xuLyDatLamMacDinh(id) {
+      const ketQua = await datLamSceneBatDau(id);
+
+      if (!ketQua.thanhCong) {
+        alert("Không đặt được scene bắt đầu: " + ketQua.loi);
+        return;
+      }
+
+      await taiVaVeDanhSachScene();
+    }
+
+    // Gọi hàm khởi tạo ngay khi trang tải xong
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

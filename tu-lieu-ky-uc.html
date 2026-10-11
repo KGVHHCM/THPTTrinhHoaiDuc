@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<!--
+  FILE: tu-lieu-ky-uc.html
+  MỤC ĐÍCH: Hiển thị bài viết thuộc 3 loại "hồi ức nhân chứng",
+  "bài nghiên cứu" và "kỷ niệm & ngày lễ" (đều thuộc nhóm "tư liệu")
+  trên CÙNG 1 trang, lọc qua lại giữa các loại bằng thanh tab —
+  KHÔNG chuyển trang khi đổi tab, chỉ tải lại dữ liệu và vẽ lại lưới
+  thẻ. Loại "tin_tuc" KHÔNG xuất hiện ở đây, đã có trang riêng
+  tin-tuc-hoat-dong.html.
+
+  Bố cục hiển thị CỐ ĐỊNH kiểu "Bento" (lưới bất đối xứng, ô nổi
+  bật chiếm 2x2) — đã bỏ thanh chuyển bố cục Tạp chí/Masonry.
+-->
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tư liệu & Ký ức - Không gian văn hóa Hồ Chí Minh</title>
+  <meta
+    name="description"
+    content="Hồi ức nhân chứng, bài nghiên cứu và những dấu mốc, ngày lễ quan trọng gắn với Chủ tịch Hồ Chí Minh và lịch sử dân tộc."
+  />
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+    <!-- Favicon: logo trường hiện trên tab trình duyệt -->
+  <link rel="icon" type="image/png" href="assets/images/logotruong.png" />
+  <link rel="apple-touch-icon" href="assets/images/logotruong.png" />
+</head>
+<body>
+
+  <div id="site-header"></div>
+
+  <main id="noi-dung-chinh">
+    <section class="section">
+      <div class="khung-noi-dung">
+        
+        <h1>Tư liệu &amp; Ký ức</h1>
+        
+
+        <hr class="duong-ke-muc" />
+
+        <!-- Thanh tab lọc: assets/js/section-tulieu.js gắn sự kiện
+             bấm vào các nút bên trong khung này. data-loai khớp
+             ĐÚNG với mã loai_bai_viet lưu trong database, riêng tab
+             "Tất cả" dùng data-loai="" (chuỗi rỗng) để phân biệt với
+             việc lọc theo 1 loại cụ thể -->
+        <div
+          class="thanh-tab-tulieu"
+          id="thanh-tab-tulieu"
+          role="tablist"
+          aria-label="Lọc theo loại tư liệu"
+        >
+          <button
+            type="button"
+            class="tab-tulieu dang-active"
+            data-loai=""
+            role="tab"
+            aria-selected="true"
+          >
+            Tất cả
+          </button>
+          <button
+            type="button"
+            class="tab-tulieu"
+            data-loai="hoi_uc"
+            role="tab"
+            aria-selected="false"
+          >
+            Hồi ức nhân chứng
+          </button>
+          <button
+            type="button"
+            class="tab-tulieu"
+            data-loai="nghien_cuu"
+            role="tab"
+            aria-selected="false"
+          >
+            Bài nghiên cứu
+          </button>
+          <button
+            type="button"
+            class="tab-tulieu"
+            data-loai="ky_niem"
+            role="tab"
+            aria-selected="false"
+          >
+            Kỷ niệm &amp; Ngày lễ
+          </button>
+        </div>
+
+        <!-- Lưới thẻ bài viết: assets/js/render-tulieu.js chèn nội
+             dung thật vào đây sau khi tải xong dữ liệu của tab đang
+             chọn, theo bố cục Bento cố định -->
+        <div id="luoi-tu-lieu">
+          <p class="thong-bao-rong-cong-khai">Đang tải tư liệu...</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <!-- Thứ tự nhúng JS: thư viện Supabase JS -> supabase-client.js ->
+       posts.js (layDanhSachBaiViet) -> render-card.js -> render-tulieu.js
+       (veDanhSachTuLieuBento) -> section-tulieu.js (ganSuKienTab, riêng
+       cho trang này) -> nav.js (dựng header/footer). Trang PUBLIC này
+       KHÔNG cần auth.js vì không có hành động nào yêu cầu đăng nhập. -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/posts.js"></script>
+  <script src="assets/js/render-card.js"></script>
+  <script src="assets/js/render-tulieu.js"></script>
+  <script src="assets/js/section-tulieu.js"></script>
+  <script src="assets/js/nav.js"></script>
+
+  <script>
+    // ------------------------------------------------------------
+    // DANH SÁCH 3 LOẠI BÀI VIẾT THUỘC NHÓM "TƯ LIỆU" hiển thị ở
+    // trang này khi chọn tab "Tất cả" (KHÔNG bao gồm "tin_tuc",
+    // vì loại đó đã có trang riêng tin-tuc-hoat-dong.html)
+    // ------------------------------------------------------------
+    const LOAI_TU_LIEU_HOP_LE = ["hoi_uc", "nghien_cuu", "ky_niem"];
+
+    // ------------------------------------------------------------
+    // HÀM: khoiTaoTrang
+    // MỤC ĐÍCH: Chạy khi trang vừa tải xong — gắn sự kiện cho thanh
+    // tab lọc, rồi tải dữ liệu lần đầu tiên ứng với tab mặc định
+    // ("Tất cả", tương ứng loai = "")
+    // ------------------------------------------------------------
+    async function khoiTaoTrang() {
+      ganSuKienTab("thanh-tab-tulieu", taiDanhSachTheoLoai);
+      await taiDanhSachTheoLoai("");
+    }
+
+    // ------------------------------------------------------------
+    // HÀM: taiDanhSachTheoLoai
+    // MỤC ĐÍCH: Được gọi mỗi khi cần tải lại dữ liệu — lúc khởi tạo
+    // trang, hoặc mỗi khi người dùng bấm sang 1 tab khác (do
+    // section-tulieu.js gọi lại hàm này thông qua callback).
+    //
+    // THAM SỐ:
+    //   - loai: chuỗi loại bài viết cần lọc ("hoi_uc" | "nghien_cuu"
+    //     | "ky_niem"), hoặc "" nếu là tab "Tất cả" (lấy cả 3 loại)
+    //
+    // TRẢ VỀ: không có
+    // ------------------------------------------------------------
+    async function taiDanhSachTheoLoai(loai) {
+      const oKhung = document.getElementById("luoi-tu-lieu");
+
+      // Hiện lại trạng thái "đang tải" mỗi lần đổi tab, để người dùng
+      // biết trang đang xử lý, không tưởng nhầm là bấm không có phản hồi
+      oKhung.classList.remove("luoi-the-bai-viet");
+      oKhung.innerHTML =
+        '<p class="thong-bao-rong-cong-khai">Đang tải tư liệu...</p>';
+
+      let danhSachBaiViet;
+
+      if (loai) {
+        // Đã chọn đúng 1 loại cụ thể -> gọi thẳng 1 lần như các trang khác
+        const ketQua = await layDanhSachBaiViet(loai, true);
+
+        if (!ketQua.thanhCong) {
+          oKhung.innerHTML =
+            '<p class="thong-bao-rong-cong-khai">Không tải được dữ liệu, vui lòng thử lại sau.</p>';
+          return;
+        }
+
+        danhSachBaiViet = ketQua.duLieu;
+      } else {
+        // Tab "Tất cả" -> gọi song song layDanhSachBaiViet() cho cả 3
+        // loại thuộc nhóm tư liệu (Promise.all chạy đồng thời thay vì
+        // chờ tuần tự từng loại, tải nhanh hơn), sau đó gộp kết quả
+        // lại thành 1 mảng duy nhất
+        const ketQuaMang = await Promise.all(
+          LOAI_TU_LIEU_HOP_LE.map(function (mucLoai) {
+            return layDanhSachBaiViet(mucLoai, true);
+          })
+        );
+
+        // Nếu BẤT KỲ lời gọi nào trong 3 lời gọi trên bị lỗi, coi như
+        // cả thao tác thất bại (tránh hiển thị dữ liệu thiếu sót mà
+        // không báo cho người dùng biết)
+        const coLoiXayRa = ketQuaMang.some(function (kq) {
+          return !kq.thanhCong;
+        });
+
+        if (coLoiXayRa) {
+          oKhung.innerHTML =
+            '<p class="thong-bao-rong-cong-khai">Không tải được dữ liệu, vui lòng thử lại sau.</p>';
+          return;
+        }
+
+        // Gộp mảng bài viết của cả 3 loại lại thành 1 mảng phẳng duy nhất
+        danhSachBaiViet = ketQuaMang.flatMap(function (kq) {
+          return kq.duLieu;
+        });
+
+        // Mỗi mảng con đã được sắp xếp mới nhất lên đầu RIÊNG cho từng
+        // loại, nhưng sau khi gộp 3 mảng lại với nhau thứ tự tổng thể
+        // không còn đúng nữa -> cần sắp xếp lại 1 lần theo created_at
+        // giảm dần trên toàn bộ danh sách đã gộp
+        danhSachBaiViet.sort(function (a, b) {
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
+      }
+
+      veDanhSachTuLieuBento(
+        danhSachBaiViet,
+        "luoi-tu-lieu",
+        "Chưa có tư liệu nào trong mục này."
+      );
+    }
+
+    khoiTaoTrang();
+  </script>
+</body>
+</html>

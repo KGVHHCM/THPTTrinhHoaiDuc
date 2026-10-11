@@ -1,0 +1,255 @@
+/* ============================================================
+   FILE: assets/css/cuoc-doi.css
+   MỤC ĐÍCH: Style riêng cho khu vực "Cuộc đời & Sự nghiệp Chủ tịch
+   Hồ Chí Minh" (dạng Tabs) ở trang chủ kgvh.html.
+
+   Tách thành file RIÊNG thay vì chèn vào style.css gốc, để:
+     1. Không phải sửa/động vào file style.css đã ổn định
+     2. Chỉ cần thêm 1 dòng <link> vào kgvh.html là dùng được
+     3. Dễ tìm, dễ gỡ bỏ sau này nếu cần
+
+   File này PHẢI được nhúng SAU style.css trong kgvh.html, để có
+   thể dùng lại các biến (CSS custom properties) đã khai báo ở
+   :root trong style.css (--mau-do, --khoang-4, --font-tieu-de...)
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   THANH TAB (các nút chọn giai đoạn)
+   ------------------------------------------------------------ */
+.cuoc-doi-khung {
+  margin-top: var(--khoang-5);
+}
+
+.cuoc-doi-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--khoang-2);
+  margin-bottom: var(--khoang-6);
+  padding-bottom: var(--khoang-4);
+  border-bottom: 1px solid var(--mau-vien);
+}
+
+.cuoc-doi-tab {
+  padding: var(--khoang-2) var(--khoang-4);
+  border: 1.5px solid var(--mau-vien-dam);
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--mau-chu-nhat);
+  background-color: transparent;
+  text-align: left;
+  transition: background-color var(--toc-do-hieu-ung) ease,
+    border-color var(--toc-do-hieu-ung) ease,
+    color var(--toc-do-hieu-ung) ease;
+}
+
+.cuoc-doi-tab:hover {
+  border-color: var(--mau-do);
+  color: var(--mau-do);
+}
+
+/* Mốc thời gian nhỏ hiển thị phía trên tên giai đoạn trong mỗi nút tab */
+.cuoc-doi-tab-thoigian {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mau-vang-dong);
+  margin-bottom: 2px;
+}
+
+.cuoc-doi-tab.dang-active {
+  background-color: var(--mau-do);
+  border-color: var(--mau-do);
+  color: #fff;
+}
+
+.cuoc-doi-tab.dang-active .cuoc-doi-tab-thoigian {
+  color: #f3ede0;
+}
+
+/* ------------------------------------------------------------
+   KHU VỰC NỘI DUNG (panel) CỦA TỪNG GIAI ĐOẠN
+   Các panel xếp CHỒNG LÊN NHAU (position: absolute) trong cùng 1
+   khung, chỉ panel có class "dang-hien" mới thật sự chiếm chỗ và
+   hiển thị -> khi chuyển tab, panel cũ mờ dần/panel mới hiện dần
+   mà không làm khung nội dung "giật" chiều cao.
+   ------------------------------------------------------------ */
+.cuoc-doi-panels {
+  position: relative;
+  min-height: 460px;
+}
+
+.cuoc-doi-panel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: var(--khoang-6);
+  align-items: center;
+
+  opacity: 0;
+  transform: translateY(18px);
+  pointer-events: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.cuoc-doi-panel.dang-hien {
+  position: relative;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* ---- Cột ảnh ---- */
+.cuoc-doi-anh-khung {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--ban-kinh-vua);
+  overflow: hidden; /* cắt phần ảnh tràn ra khi bị scale/translate bởi hiệu ứng parallax */
+  background-color: var(--mau-nen-phu);
+  box-shadow: 0 24px 48px -12px rgba(42, 36, 28, 0.28);
+}
+
+.cuoc-doi-anh-khung img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Phóng to sẵn 1 chút so với khung chứa, để khi JS dịch chuyển ảnh
+     lên/xuống (hiệu ứng parallax) không để lộ khoảng trống ở mép */
+  transform: scale(1.08);
+  will-change: transform;
+}
+
+/* Hoạ tiết khung viền mảnh đặt lệch phía sau ảnh, tạo chiều sâu thị
+   giác kiểu khung ảnh tư liệu/bảo tàng thay vì ảnh trơn thông thường */
+.cuoc-doi-anh-khung::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ban-kinh-vua);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 59, 0.35);
+  pointer-events: none;
+}
+
+/* ---- Cột chữ ---- */
+.cuoc-doi-thoigian {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mau-vang-dong);
+  margin-bottom: var(--khoang-2);
+}
+
+.cuoc-doi-noidung h3 {
+  margin-bottom: var(--khoang-3);
+}
+
+.cuoc-doi-noidung p {
+  white-space: pre-line; /* giữ nguyên xuống dòng admin đã gõ, giống .bai-viet-noidung */
+  max-width: none;
+  color: var(--mau-chu);
+}
+
+/* ------------------------------------------------------------
+   RESPONSIVE: dưới 780px, ảnh xếp trên, chữ xếp dưới (1 cột)
+   ------------------------------------------------------------ */
+@media (max-width: 780px) {
+  .cuoc-doi-panels {
+    min-height: 0;
+  }
+
+  .cuoc-doi-panel {
+    /* Trên 1 cột, panel không cần xếp chồng tuyệt đối nữa (không có
+       nguy cơ 2 panel đè chồng gây giật chiều cao như bố cục 2 cột) */
+    position: relative;
+    grid-template-columns: 1fr;
+    gap: var(--khoang-4);
+    display: none;
+  }
+
+  .cuoc-doi-panel.dang-hien {
+    display: grid;
+  }
+
+  .cuoc-doi-anh-khung {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+/* Dấu & dùng font quen mắt hơn, tránh kiểu hoa mỹ của Playfair */
+.section-chan-dung h2 .dau-va {
+  font-family: 'Lora', Georgia, serif;
+  font-style: normal;
+  font-weight: 600;
+  margin: 0 0.05em;
+}
+
+/* ===== Tiêu đề section "Bốn mảng nội dung chính" (giống "Chân dung lịch sử") ===== */
+.section-tru-cot .nhan-muc {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #b8893c;
+  opacity: 0;
+  animation: tieuDeLenXuong 0.7s ease forwards;
+}
+
+.section-tru-cot .icon-sao-bon-canh {
+  width: 22px;
+  height: 22px;
+  fill: #d4a84b;
+  filter: drop-shadow(0 0 6px rgba(212, 168, 75, 0.55));
+  animation: saoLapLanh 2.8s ease-in-out infinite;
+}
+
+.section-tru-cot h2 {
+  margin: 10px 0 0;
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(30px, 4vw, 46px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #3b1a14;
+  opacity: 0;
+  animation: tieuDeLenXuong 0.8s ease 0.15s forwards;
+}
+
+.section-tru-cot .gach-tieu-de {
+  display: block;
+  width: 150px;
+  height: 4px;
+  margin: 18px 0 32px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #a81c33, #d4a84b);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: gachMoRong 0.8s ease 0.45s forwards;
+}
+
+@keyframes tieuDeLenXuong {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gachMoRong {
+  to { transform: scaleX(1); }
+}
+
+@keyframes saoLapLanh {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50%      { transform: scale(1.18) rotate(12deg); opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-tru-cot .nhan-muc,
+  .section-tru-cot h2,
+  .section-tru-cot .gach-tieu-de,
+  .section-tru-cot .icon-sao-bon-canh { animation: none; opacity: 1; transform: none; }
+}
